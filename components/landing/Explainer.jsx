@@ -158,10 +158,14 @@ export function HowItWorksSection() {
                     {(isFirst || isLast) && (
                       <Badge tone="primary">{isFirst ? "You" : "You decide"}</Badge>
                     )}
+                    {step.comingSoon && <Badge tone="warn">Coming soon</Badge>}
                   </div>
 
                   <h3 className="mt-4 text-[15px] font-semibold tracking-[-0.015em] text-ink">{step.title}</h3>
                   <p className="mt-1.5 text-[13px] leading-relaxed text-muted">{step.body}</p>
+                  {step.note && (
+                    <p className="mt-2 text-[12px] leading-relaxed text-faint">{step.note}</p>
+                  )}
                 </div>
               </StepItem>
             );
