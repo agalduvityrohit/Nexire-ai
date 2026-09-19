@@ -33,7 +33,7 @@ export function InterviewSection() {
             Your first round is a conversation — with someone you can actually see.
           </h2>
           <p className="mt-4 text-[16px] leading-relaxed text-ink-soft">
-            {interviewer.name} appears on screen as a real presence, not a recording prompt — she responds
+            {interviewer.name} appears on screen as a real presence, not a recording prompt — he responds
             to what candidates say, waits while they think, and keeps the conversation feeling natural.
             Always clearly AI, never passed off as human.
           </p>
@@ -325,7 +325,14 @@ export function SourcesSection() {
       <div className="mx-auto max-w-6xl px-5 sm:px-8">
         <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <Reveal>
-            <Badge tone="info">Open-market search</Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone="info">Open-market search</Badge>
+              <Badge tone="warn">Coming soon</Badge>
+            </div>
+            <p className="mt-3 rounded-[10px] border border-dashed border-line-strong bg-canvas-deep/50 px-3 py-2 text-[12.5px] leading-relaxed text-muted">
+              This section describes planned functionality. Open-market and GitHub sourcing are not live yet —
+              today, candidates come in through résumé intake (email, upload and job boards).
+            </p>
             <h2 className="mt-4 text-[30px] font-semibold leading-[1.1] tracking-[-0.03em] text-ink sm:text-[38px]">
               Not just the people who apply to you.
             </h2>
