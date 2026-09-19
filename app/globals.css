@@ -1,0 +1,192 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, monospace;
+
+  /* Surfaces — soft, warm off-white */
+  --color-canvas: #faf9f7;
+  --color-canvas-deep: #f4f2ee;
+  --color-surface: #ffffff;
+  --color-raised: #fdfcfa;
+
+  /* Lines */
+  --color-line: #e9e5df;
+  --color-line-soft: #f0ece6;
+  --color-line-strong: #d8d2c9;
+
+  /* Ink */
+  --color-ink: #15171c;
+  --color-ink-soft: #454a52;
+  --color-muted: #83807a;
+  --color-faint: #a5a19a;
+
+  /* Primary — deep teal */
+  --color-primary: #0e5c54;
+  --color-primary-hover: #0a4842;
+  --color-primary-deep: #073430;
+  --color-primary-soft: #e6f0ee;
+  --color-primary-mid: #c3ddd8;
+
+  /* Accent — warm terracotta for CTAs */
+  --color-accent: #dd6338;
+  --color-accent-hover: #c8542b;
+  --color-accent-soft: #fdeee7;
+
+  /* Status */
+  --color-success: #2f7d5d;
+  --color-success-soft: #e6f3ec;
+  --color-warn: #a97318;
+  --color-warn-soft: #fbf1de;
+  --color-danger: #bf4a3f;
+  --color-danger-soft: #fbeae8;
+  --color-info: #435cad;
+  --color-info-soft: #ecefFb;
+  --color-violet: #6d51a8;
+  --color-violet-soft: #f1ecfa;
+
+  /* Radii */
+  --radius-card: 0.875rem;
+  --radius-panel: 1.25rem;
+
+  /* Shadows — very soft, premium */
+  --shadow-xs: 0 1px 2px rgba(21, 23, 28, 0.04);
+  --shadow-card: 0 1px 2px rgba(21, 23, 28, 0.04), 0 1px 12px rgba(21, 23, 28, 0.03);
+  --shadow-lift: 0 2px 4px rgba(21, 23, 28, 0.04), 0 12px 32px rgba(21, 23, 28, 0.07);
+  --shadow-pop: 0 4px 8px rgba(21, 23, 28, 0.05), 0 24px 56px rgba(21, 23, 28, 0.11);
+  --shadow-drag: 0 8px 16px rgba(21, 23, 28, 0.08), 0 28px 60px rgba(21, 23, 28, 0.16);
+}
+
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop {
+    border-color: var(--color-line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.021em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: var(--color-primary-mid);
+    color: var(--color-primary-deep);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+  }
+}
+
+/* The one easing curve — mirrors EASE in lib/motion.js. */
+@utility ease-brand {
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@utility hairline {
+  box-shadow: inset 0 0 0 1px var(--color-line);
+}
+
+/* Subtle dotted texture used behind marketing sections */
+@utility dot-grid {
+  background-image: radial-gradient(circle at 1px 1px, rgba(14, 92, 84, 0.11) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+@utility grid-lines {
+  background-image: linear-gradient(to right, rgba(21, 23, 28, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(21, 23, 28, 0.045) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+
+@keyframes nx-pulse-ring {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.55;
+  }
+  70% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+@keyframes nx-bar {
+  0%,
+  100% {
+    transform: scaleY(0.28);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes nx-shimmer {
+  0% {
+    background-position: -420px 0;
+  }
+  100% {
+    background-position: 420px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
