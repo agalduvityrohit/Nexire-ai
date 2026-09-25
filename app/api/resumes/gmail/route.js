@@ -2,6 +2,7 @@
 // the same parse + classify pipeline as a manual upload.
 
 import { NextResponse } from "next/server";
+import { authorize } from "@/lib/server/auth";
 import { getActiveProvider, resolveCredential } from "@/lib/server/keystore";
 import { fetchResumeAttachments } from "@/lib/server/gmail";
 import { processResumes } from "@/lib/server/pipeline";
@@ -11,6 +12,10 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function POST(request) {
+  const { ctx, error: authError } = await authorize(request, { login: true });
+  if (authError) return authError;
+  const companyId = ctx.companyId; // from the session — any companyId in the request is ignored
+
   let body;
   try {
     body = await request.json();
@@ -19,7 +24,7 @@ export async function POST(request) {
   }
 
   // sinceMonths is the historical-import control; 0 means "all time".
-  const { companyId, mailbox = "INBOX", sinceMonths = 3, from = "", maxFiles = 50 } = body || {};
+  const { mailbox = "INBOX", sinceMonths = 3, from = "", maxFiles = 50 } = body || {};
 
   let gmail;
   try {

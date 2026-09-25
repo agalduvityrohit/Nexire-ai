@@ -20,7 +20,7 @@ const TABS = [
 ];
 
 export default function DashboardOverview() {
-  const { candidates, jobs } = useStore();
+  const { candidates, jobs, session } = useStore();
   const [tab, setTab] = useState("all");
 
   const jobsById = useMemo(() => Object.fromEntries(jobs.map((j) => [j.id, j])), [jobs]);
@@ -67,7 +67,7 @@ export default function DashboardOverview() {
     <>
       <PageHeader
         eyebrow="Overview"
-        title={`Good morning, ${employer.name.split(" ")[0]}`}
+        title={`Good morning, ${(session?.name || employer.name).split(" ")[0]}`}
         subtitle={subtitle}
         actions={
           <>

@@ -3,8 +3,12 @@
 // dropdown instead of alt-tabbing to the provider's website to look one up.
 // Accepts an optional inline `value` the same way Test Connection does, so
 // it works before a key is even saved.
+//
+// Admin only: LLM keys are platform credentials, and an open route that takes a
+// key and calls out is a free proxy for anyone on the internet.
 
 import { NextResponse } from "next/server";
+import { authorize, PLATFORM_ID } from "@/lib/server/auth";
 import { resolveCredential } from "@/lib/server/keystore";
 import { listModels } from "@/lib/server/llm";
 import { LLM_PROVIDERS } from "@/lib/providers";
@@ -13,6 +17,9 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 export async function POST(request) {
+  const { error: authError } = await authorize(request, { admin: true });
+  if (authError) return authError;
+
   let body;
   try {
     body = await request.json();
@@ -20,7 +27,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
   }
 
-  const { companyId, provider, value } = body || {};
+  const { provider, value } = body || {};
   if (!LLM_PROVIDERS[provider]) {
     return NextResponse.json({ error: `Unknown provider "${provider}".` }, { status: 400 });
   }
@@ -28,7 +35,7 @@ export async function POST(request) {
   let apiKey = typeof value === "string" && value.trim() ? value.trim() : null;
   if (!apiKey) {
     try {
-      const cred = await resolveCredential(companyId, provider);
+      const cred = await resolveCredential(PLATFORM_ID, provider);
       apiKey = cred?.key || null;
     } catch (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

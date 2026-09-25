@@ -68,10 +68,39 @@ export function StoreProvider({ children }) {
   const [candidates, setCandidates] = useState([]);
   const [toast, setToast] = useState(null);
 
-  // Mock employer session. There is no auth — this only drives the signed-in
-  // chrome (who you are, which company). Clears on refresh.
+  // Real session: a signed httpOnly cookie set by /api/auth/login|signup, read
+  // back through /api/auth/me. No session = the public demo sandbox. (The old
+  // onboarding flow can still set a mock session via signIn(); it has no cookie,
+  // so the server treats it as the demo.)
   const [session, setSession] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
   const companyId = session?.company?.id || "demo-company";
+
+  const loadSession = useCallback(async () => {
+    try {
+      const res = await fetch("/api/auth/me");
+      const json = await res.json();
+      if (json.user && json.company) {
+        const display = json.user.name?.trim() || json.company.name;
+        setSession({
+          name: display,
+          email: json.user.email,
+          initials: display.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase(),
+          company: { id: json.company.id, name: json.company.name },
+          accountRole: json.company.role, // "company" | "admin"
+          real: true,
+        });
+        return true;
+      }
+    } catch {
+      // offline / server down — stay in demo mode
+    }
+    return false;
+  }, []);
+
+  useEffect(() => {
+    loadSession().finally(() => setAuthReady(true));
+  }, [loadSession]);
 
   const notify = useCallback((message, tone = "success") => {
     setToast({ id: Date.now(), message, tone });
@@ -82,7 +111,10 @@ export function StoreProvider({ children }) {
   // real data if Supabase is configured, otherwise stays empty just like
   // before.
   useEffect(() => {
+    if (!authReady) return; // wait until we know whose data to load
     let cancelled = false;
+    setJobs([]);
+    setCandidates([]);
     (async () => {
       try {
         const [jobsRes, candidatesRes] = await Promise.all([
@@ -99,7 +131,7 @@ export function StoreProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [companyId]);
+  }, [companyId, authReady]);
 
   const addJob = useCallback(
     (draft) => {
@@ -123,6 +155,8 @@ export function StoreProvider({ children }) {
         responsibilities: draft.responsibilities || [],
         requirements: draft.requirements || [],
         benefits: draft.benefits || [],
+        interviewSlots: draft.interviewSlots || [],
+        hiringManagerEmail: draft.hiringManagerEmail || "",
         isNew: true,
       };
       setJobs((prev) => [job, ...prev]);
@@ -134,6 +168,28 @@ export function StoreProvider({ children }) {
       return job;
     },
     [companyId]
+  );
+
+  // Edits a job (interview slots, hiring-manager email, …) and saves it.
+  const updateJob = useCallback(
+    async (jobId, patch) => {
+      const current = jobs.find((j) => j.id === jobId);
+      if (!current) return { ok: false, error: "Job not found." };
+      const job = { ...current, ...patch };
+      setJobs((prev) => prev.map((j) => (j.id === jobId ? job : j)));
+      try {
+        const res = await fetch("/api/jobs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ job }),
+        });
+        if (!res.ok) throw new Error((await res.json()).error || "Save failed.");
+        return { ok: true };
+      } catch (e) {
+        return { ok: false, error: e.message };
+      }
+    },
+    [jobs]
   );
 
   // Deletes the job and releases its candidates back to the general pool
@@ -155,16 +211,69 @@ export function StoreProvider({ children }) {
     [companyId]
   );
 
+  // Tells the user what the server did about the interview invitation that
+  // fires when someone becomes "shortlisted" — never silently.
+  const reportInvites = useCallback(
+    (invites) => {
+      const list = invites.filter(Boolean);
+      if (!list.length) return;
+      const sent = list.filter((i) => i.status === "sent").length;
+      const noSlots = list.filter((i) => i.reason === "no_slots").length;
+      const noEmail = list.filter((i) => i.reason === "no_email").length;
+      const notConfigured = list.filter((i) => i.reason === "email_not_configured").length;
+      const failed = list.filter((i) => i.status === "failed" && i.reason !== "email_not_configured").length;
+
+      if (sent) notify(`Interview invitation emailed to ${sent} shortlisted candidate${sent === 1 ? "" : "s"}`);
+      if (noSlots) notify(`${noSlots} shortlisted, but not emailed — add interview slots to the job first, then use Send invite.`, "warn");
+      else if (notConfigured) notify("Shortlisted, but email isn't set up yet (the platform needs a Resend key).", "warn");
+      else if (noEmail && !sent) notify(`${noEmail} shortlisted candidate${noEmail === 1 ? " has" : "s have"} no email address on file.`, "warn");
+      else if (failed && !sent) notify("Shortlisted, but the invitation email couldn't be sent.", "warn");
+    },
+    [notify]
+  );
+
   const setCandidateStatus = useCallback(
     (candidateId, status) => {
       setCandidates((prev) => prev.map((c) => (c.id === candidateId ? { ...c, status } : c)));
       fetch("/api/candidates", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId, id: candidateId, patch: { status } }),
-      }).catch(() => {});
+        body: JSON.stringify({ id: candidateId, patch: { status } }),
+      })
+        .then((r) => r.json())
+        .then((json) => {
+          if (json?.candidate?.invitedAt) {
+            setCandidates((prev) => prev.map((c) => (c.id === candidateId ? { ...c, invitedAt: json.candidate.invitedAt } : c)));
+          }
+          reportInvites([json?.invite]);
+        })
+        .catch(() => {});
     },
-    [companyId]
+    [reportInvites]
+  );
+
+  // Send / re-send the interview scheduling email for one shortlisted candidate.
+  const sendInvite = useCallback(
+    async (candidateId, { force = false } = {}) => {
+      try {
+        const res = await fetch("/api/candidates/invite", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: candidateId, force }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Couldn't send the invitation.");
+        if (json.invite?.status === "sent") {
+          setCandidates((prev) => prev.map((c) => (c.id === candidateId ? { ...c, invitedAt: new Date().toISOString() } : c)));
+        }
+        reportInvites([json.invite]);
+        return json.invite;
+      } catch (e) {
+        notify(e.message, "warn");
+        return null;
+      }
+    },
+    [notify, reportInvites]
   );
 
   const addCandidate = useCallback(
@@ -321,19 +430,23 @@ export function StoreProvider({ children }) {
       const patchById = new Map(patched.map((p) => [p.id, p]));
       setCandidates((prev) => prev.map((c) => patchById.get(c.id) || c));
 
-      for (const c of patched) {
-        fetch("/api/candidates", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            companyId,
-            id: c.id,
-            patch: { jobId: c.jobId, status: c.status, matchScore: c.matchScore, aiFlags: c.aiFlags, timeline: c.timeline },
-          }),
-        }).catch(() => {});
-      }
+      Promise.all(
+        patched.map((c) =>
+          fetch("/api/candidates", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: c.id,
+              patch: { jobId: c.jobId, status: c.status, matchScore: c.matchScore, aiFlags: c.aiFlags, timeline: c.timeline },
+            }),
+          })
+            .then((r) => r.json())
+            .then((json) => json?.invite || null)
+            .catch(() => null)
+        )
+      ).then(reportInvites);
     },
-    [candidates, companyId]
+    [candidates, reportInvites]
   );
 
   /* ------------------------------------------------------ bulk upload job */
@@ -589,7 +702,15 @@ export function StoreProvider({ children }) {
     });
   }, []);
 
-  const signOut = useCallback(() => setSession(null), []);
+  // Real sign-out: clears the cookie server-side, then resets local state.
+  const signOut = useCallback(async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // cookie will expire on its own; still drop the local session
+    }
+    setSession(null);
+  }, []);
 
   const setSessionCompany = useCallback((company) => {
     setSession((s) => (s ? { ...s, company } : s));
@@ -614,6 +735,10 @@ export function StoreProvider({ children }) {
       toast,
       notify,
       session,
+      authReady,
+      loadSession,
+      updateJob,
+      sendInvite,
       signIn,
       signOut,
       setSessionCompany,
@@ -650,6 +775,10 @@ export function StoreProvider({ children }) {
       toast,
       notify,
       session,
+      authReady,
+      loadSession,
+      updateJob,
+      sendInvite,
       signIn,
       signOut,
       setSessionCompany,

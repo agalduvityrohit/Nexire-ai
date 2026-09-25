@@ -7,6 +7,7 @@ import { Breadcrumb, PageHeader } from "@/components/dashboard/Shell";
 import { PipelineBoard } from "@/components/dashboard/PipelineBoard";
 import { CandidateCards, CandidateTable } from "@/components/dashboard/CandidateTable";
 import { ShortlistPanel } from "@/components/dashboard/ShortlistPanel";
+import { InterviewSlotsEditor } from "@/components/dashboard/InterviewSlotsEditor";
 import { Badge, Button, Card, Divider, KeyValue, Pill, SectionTitle } from "@/components/ui/Primitives";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Icon } from "@/components/ui/Icons";
@@ -23,7 +24,7 @@ const TABS = [
 export default function JobDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { getJob, candidatesForJob, jobs, removeJob, notify } = useStore();
+  const { getJob, candidatesForJob, jobs, removeJob, updateJob, notify } = useStore();
   const [tab, setTab] = useState("pipeline");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -145,6 +146,10 @@ export default function JobDetailPage() {
         <ShortlistPanel job={job} />
       </div>
 
+      <div className="mb-5">
+        <InterviewScheduling job={job} updateJob={updateJob} notify={notify} />
+      </div>
+
       {/* tabs */}
       <div className="mb-4 flex items-center gap-1 border-b border-line">
         {TABS.map((t) => {
@@ -194,6 +199,53 @@ export default function JobDetailPage() {
 
       {tab === "details" && <JobDetails job={job} />}
     </>
+  );
+}
+
+// Interview times offered to shortlisted candidates. Saved explicitly so a half-edited
+// list never goes live by accident.
+function InterviewScheduling({ job, updateJob, notify }) {
+  const savedSlots = job.interviewSlots || [];
+  const [slots, setSlots] = useState(savedSlots);
+  const [managerEmail, setManagerEmail] = useState(job.hiringManagerEmail || "");
+  const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const dirty =
+    JSON.stringify(slots.map((s) => s.id)) !== JSON.stringify(savedSlots.map((s) => s.id)) ||
+    managerEmail.trim() !== (job.hiringManagerEmail || "");
+
+  async function save() {
+    setSaving(true);
+    const result = await updateJob(job.id, { interviewSlots: slots, hiringManagerEmail: managerEmail.trim() });
+    setSaving(false);
+    notify(result.ok ? "Interview times saved" : result.error || "Couldn't save.", result.ok ? "success" : "warn");
+  }
+
+  const upcoming = savedSlots.filter((s) => new Date(s.start) > new Date()).length;
+
+  return (
+    <Card className="p-4">
+      <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between gap-3 text-left">
+        <span className="flex items-center gap-2">
+          <Icon.Clock size={15} className="text-primary" />
+          <span className="text-[14px] font-semibold text-ink">Interview scheduling</span>
+          <Badge tone={upcoming ? "success" : "warn"}>{upcoming ? `${upcoming} time${upcoming === 1 ? "" : "s"} offered` : "No times set"}</Badge>
+        </span>
+        <Icon.ChevronRight size={15} className={cn("text-faint transition-transform", open && "rotate-90")} />
+      </button>
+
+      {open && (
+        <div className="mt-4 border-t border-line pt-4">
+          <InterviewSlotsEditor slots={slots} onChange={setSlots} managerEmail={managerEmail} onManagerEmailChange={setManagerEmail} />
+          <div className="mt-4 flex justify-end">
+            <Button variant="primary" size="sm" onClick={save} disabled={!dirty || saving}>
+              {saving ? "Saving…" : "Save interview times"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }
 

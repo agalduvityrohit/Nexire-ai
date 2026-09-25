@@ -30,9 +30,30 @@ const SERVICE_META = {
     purpose: "Résumé intake",
     blurb: "Pulls PDF and DOCX attachments out of an inbox over IMAP so applications land in the pipeline.",
   },
+  vapi: {
+    icon: Icon.Mic,
+    purpose: "Voice interviews",
+    blurb: "Voice layer for the AI interviewer. Stored for later — not used for live candidates yet.",
+  },
+  deepgram: {
+    icon: Icon.Waves,
+    purpose: "Speech-to-text",
+    blurb: "Transcription for interviews. Stored for later — not used for live candidates yet.",
+  },
+  resend: {
+    icon: Icon.Mail,
+    purpose: "Transactional email",
+    blurb: "Sends the shortlist and interview-confirmation emails to candidates and hiring managers.",
+  },
 };
 
-export function ApiConnections() {
+/**
+ * mode="admin"   — the operator's platform keys (model providers, GitHub, Vapi,
+ *                  Deepgram, Resend). Only ever rendered on /admin/keys.
+ * mode="company" — a company's own connections. Just Gmail; the AI keys are
+ *                  the platform's and deliberately invisible here.
+ */
+export function ApiConnections({ mode = "company" }) {
   const { session, notify } = useStore();
   const companyId = session?.company?.id || "demo-company";
 
@@ -144,30 +165,35 @@ export function ApiConnections() {
         </div>
       )}
 
-      {/* ============================================ 1. parsing engine */}
-      <div className="pt-1 text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">
-        Model provider — powers résumé parsing
-      </div>
+      {mode === "admin" && (
+        <>
+          {/* ============================================ 1. parsing engine */}
+          <div className="pt-1 text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">
+            Model provider — powers résumé parsing for every company
+          </div>
 
-      <ModelProviderSection
-        status={status}
-        activeProvider={activeProvider}
-        api={api}
-        notify={notify}
-        encryptionReady={encryptionReady}
-        onError={setError}
-      />
+          <ModelProviderSection
+            status={status}
+            activeProvider={activeProvider}
+            api={api}
+            notify={notify}
+            encryptionReady={encryptionReady}
+            onError={setError}
+          />
+        </>
+      )}
 
       {/* ========================================= 2. service connections */}
       <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">
-        Service connections — not parsing engines
+        {mode === "admin" ? "Platform services — shared by every company" : "Your résumé inbox"}
       </div>
       <p className="-mt-2 text-[12.5px] leading-relaxed text-muted">
-        These do their own separate jobs and can both be connected at the same time. They have nothing to
-        do with which model parses résumés.
+        {mode === "admin"
+          ? "These run every company's dashboard. Companies never see or edit them. Keys set as environment variables also show as connected here."
+          : "Connect a Gmail inbox and Nexire pulls résumé attachments into your pipeline. This is your own mailbox — nobody else can see it, and Nexire's AI runs on the platform's keys, so there's nothing else to set up."}
       </p>
 
-      {Object.keys(OTHER_PROVIDERS).map((id) => (
+      {(mode === "admin" ? Object.keys(OTHER_PROVIDERS).filter((id) => id !== "gmail") : ["gmail"]).map((id) => (
         <ServiceCard
           key={id}
           id={id}
@@ -186,9 +212,9 @@ export function ApiConnections() {
           Credentials are encrypted with AES-256-GCM before they reach the database and are never sent back
           to the browser.{" "}
           <span className="font-medium text-ink-soft">
-            These routes are not yet behind real authentication
-          </span>{" "}
-          — wire up auth before pointing this at production credentials.
+            {mode === "admin" ? "Only admin accounts can change these" : "Only your own account can see this"}
+          </span>
+          .
         </p>
       </Card>
     </div>

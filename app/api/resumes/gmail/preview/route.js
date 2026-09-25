@@ -3,6 +3,7 @@
 // so a company can size the job before committing to it.
 
 import { NextResponse } from "next/server";
+import { authorize } from "@/lib/server/auth";
 import { resolveCredential } from "@/lib/server/keystore";
 import { listMailboxes, monthsAgo, scanMailbox } from "@/lib/server/gmail";
 
@@ -10,6 +11,10 @@ export const runtime = "nodejs";
 export const maxDuration = 120;
 
 export async function POST(request) {
+  const { ctx, error: authError } = await authorize(request, { login: true });
+  if (authError) return authError;
+  const companyId = ctx.companyId; // from the session — any companyId in the request is ignored
+
   let body;
   try {
     body = await request.json();
@@ -17,7 +22,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
   }
 
-  const { companyId, mailbox = "INBOX", sinceMonths = 3, from = "", withMailboxes = false } = body || {};
+  const { mailbox = "INBOX", sinceMonths = 3, from = "", withMailboxes = false } = body || {};
 
   let gmail;
   try {

@@ -4,6 +4,7 @@
 // shape of fallback as /api/resumes/parse.
 
 import { NextResponse } from "next/server";
+import { authorize } from "@/lib/server/auth";
 import { getActiveProvider, resolveCredential } from "@/lib/server/keystore";
 import { shortlistCandidates } from "@/lib/server/shortlist";
 import { resolveModel } from "@/lib/server/llm";
@@ -12,6 +13,10 @@ export const runtime = "nodejs";
 export const maxDuration = 120;
 
 export async function POST(request) {
+  const { ctx, error: authError } = await authorize(request);
+  if (authError) return authError;
+  const companyId = ctx.companyId; // from the session — any companyId in the request is ignored
+
   let body;
   try {
     body = await request.json();
@@ -19,7 +24,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
   }
 
-  const { companyId = null, job, candidates } = body || {};
+  const { job, candidates } = body || {};
   if (!job?.title) return NextResponse.json({ error: "Missing job details." }, { status: 400 });
   if (!Array.isArray(candidates) || !candidates.length) {
     return NextResponse.json({ error: "No candidates to score." }, { status: 400 });

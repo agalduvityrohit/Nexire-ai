@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Icon } from "@/components/ui/Icons";
@@ -36,7 +36,7 @@ function isActive(pathname, item) {
 
 function SidebarContent({ onNavigate }) {
   const pathname = usePathname();
-  const { jobs, candidates } = useStore();
+  const { jobs, candidates, session } = useStore();
   const openJobs = jobs.filter((j) => j.status === "Open");
   const unreviewed = candidates.filter((c) => c.status === "applied").length;
 
@@ -63,7 +63,7 @@ function SidebarContent({ onNavigate }) {
           Workspace
         </div>
         <ul className="space-y-0.5">
-          {NAV.map((item) => {
+          {(session?.accountRole === "admin" ? [...NAV, { href: "/admin", label: "Admin", icon: Icon.Shield }] : NAV).map((item) => {
             const active = isActive(pathname, item);
             const Glyph = item.icon;
             return (
@@ -143,11 +143,18 @@ function SidebarContent({ onNavigate }) {
 // Reflects the mock session when the employer onboarding flow was walked;
 // falls back to the seeded employer so the dashboard works when opened directly.
 function SidebarUser() {
-  const { session } = useStore();
+  const router = useRouter();
+  const { session, signOut } = useStore();
+  const real = Boolean(session?.real);
   const name = session?.name || employer.name;
   const initials = session?.initials || employer.initials;
   const company = session?.company?.name || employer.company;
-  const role = session?.companyRole?.label;
+  const role = real ? null : session?.companyRole?.label;
+
+  async function leave() {
+    await signOut();
+    router.push(real ? "/login" : "/");
+  }
 
   return (
     <div className="shrink-0 border-t border-line p-3">
@@ -161,10 +168,23 @@ function SidebarUser() {
               {role && <span className="text-faint"> · {role}</span>}
             </div>
           </div>
-          <Link href="/" className="text-faint transition-colors hover:text-ink" title="Back to marketing site">
+          <button
+            type="button"
+            onClick={leave}
+            className="text-faint transition-colors hover:text-ink"
+            title={real ? "Sign out" : "Leave the demo"}
+          >
             <Icon.ArrowLeft size={15} />
-          </Link>
+          </button>
         </div>
+        {!real && (
+          <Link
+            href="/signup"
+            className="mt-2.5 block rounded-[8px] bg-primary-soft px-2.5 py-1.5 text-center text-[11.5px] font-medium text-primary transition-colors hover:bg-primary/10"
+          >
+            Demo workspace — create a real account
+          </Link>
+        )}
       </div>
     </div>
   );
@@ -216,6 +236,8 @@ export function DashboardShell({ children }) {
 }
 
 function Topbar({ onMenu }) {
+  const { session } = useStore();
+  const real = Boolean(session?.real);
   return (
     <div className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-line bg-canvas/85 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
       <button
@@ -239,9 +261,11 @@ function Topbar({ onMenu }) {
       </label>
 
       <div className="ml-auto flex items-center gap-2">
-        <Badge tone="warn" className="hidden md:inline-flex">
-          Prototype · mock data
-        </Badge>
+        {!real && (
+          <Badge tone="warn" className="hidden md:inline-flex">
+            Demo · sample sandbox
+          </Badge>
+        )}
         <button
           type="button"
           aria-label="Notifications"
@@ -250,7 +274,7 @@ function Topbar({ onMenu }) {
           <Icon.Bell size={16} />
           <span className="absolute right-2.5 top-2.5 size-1.5 rounded-full bg-accent ring-2 ring-surface" />
         </button>
-        <Avatar name={employer.name} initials={employer.initials} size="sm" />
+        <Avatar name={session?.name || employer.name} initials={session?.initials || employer.initials} size="sm" />
       </div>
     </div>
   );

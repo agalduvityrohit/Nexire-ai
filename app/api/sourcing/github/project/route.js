@@ -5,6 +5,7 @@
 // then ranks whoever owns a matching repo by how strong that match is.
 
 import { NextResponse } from "next/server";
+import { authorize } from "@/lib/server/auth";
 import { getActiveProvider, resolveCredential } from "@/lib/server/keystore";
 import { extractGithubSearchTerms } from "@/lib/server/llm";
 import { findCandidatesByProject, heuristicKeywords } from "@/lib/server/github";
@@ -13,6 +14,10 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 export async function POST(request) {
+  const { ctx, error: authError } = await authorize(request);
+  if (authError) return authError;
+  const companyId = ctx.companyId; // from the session — any companyId in the request is ignored
+
   let body;
   try {
     body = await request.json();
@@ -20,7 +25,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
   }
 
-  const { companyId = null, requirements = "", language: languageOverride = "" } = body || {};
+  const { requirements = "", language: languageOverride = "" } = body || {};
   if (!requirements.trim()) {
     return NextResponse.json({ error: "Describe the project or work you need evidence of." }, { status: 400 });
   }

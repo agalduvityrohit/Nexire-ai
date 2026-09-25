@@ -5,6 +5,7 @@
 // reliably segment free text into structured postings.
 
 import { NextResponse } from "next/server";
+import { authorize } from "@/lib/server/auth";
 import { getActiveProvider, resolveCredential } from "@/lib/server/keystore";
 import { extractFromBuffer, UnsupportedFileError } from "@/lib/server/extract";
 import { extractJobPostings, resolveModel } from "@/lib/server/llm";
@@ -13,6 +14,10 @@ export const runtime = "nodejs";
 export const maxDuration = 180;
 
 export async function POST(request) {
+  const { ctx, error: authError } = await authorize(request);
+  if (authError) return authError;
+  const companyId = ctx.companyId; // from the session — any companyId in the request is ignored
+
   let form;
   try {
     form = await request.formData();
@@ -20,7 +25,6 @@ export async function POST(request) {
     return NextResponse.json({ error: "Expected multipart/form-data." }, { status: 400 });
   }
 
-  const companyId = form.get("companyId") || null;
   const pastedText = String(form.get("text") || "").trim();
   const files = form.getAll("files").filter((f) => typeof f === "object" && "arrayBuffer" in f);
 

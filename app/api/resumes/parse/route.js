@@ -6,6 +6,7 @@
 // (lib/dedupe.js), because it has to see the whole batch, not one chunk.
 
 import { NextResponse } from "next/server";
+import { authorize } from "@/lib/server/auth";
 import { getActiveProvider, resolveCredential } from "@/lib/server/keystore";
 import { processResumes } from "@/lib/server/pipeline";
 import { resolveModel } from "@/lib/server/llm";
@@ -14,6 +15,10 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function POST(request) {
+  const { ctx, error: authError } = await authorize(request);
+  if (authError) return authError;
+  const companyId = ctx.companyId; // from the session — any companyId in the request is ignored
+
   let form;
   try {
     form = await request.formData();
@@ -22,7 +27,6 @@ export async function POST(request) {
   }
 
   const files = form.getAll("files").filter((f) => typeof f === "object" && "arrayBuffer" in f);
-  const companyId = form.get("companyId") || null;
   const requestedProvider = form.get("provider") || null;
 
   if (!files.length) return NextResponse.json({ error: "No files received." }, { status: 400 });

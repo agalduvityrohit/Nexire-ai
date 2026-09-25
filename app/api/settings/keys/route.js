@@ -1,9 +1,14 @@
-// Per-company credential management, one row per provider.
+// Credential management.
 //
-// SECURITY NOTE: this app has no real authentication yet — the "session" is
-// React state that resets on refresh. These routes therefore trust the
-// companyId in the request. Before this handles production credentials it MUST
-// sit behind real auth and derive companyId from a verified session.
+// Two kinds of credential, two rules:
+//   - Platform keys (LLMs, GitHub, Vapi, Deepgram, Resend): shared by every
+//     company, stored under PLATFORM_ID, editable ONLY by an admin. Non-admins
+//     can read a "connected or not" flag (their dashboard needs to know whether
+//     parsing will use an AI model) but never a last-4, model or account.
+//   - Gmail: a company's own inbox. That company may save/remove it; nobody else
+//     can see it.
+//
+// The companyId in the request is ignored — identity comes from the session.
 
 import { NextResponse } from "next/server";
 import {
@@ -15,8 +20,9 @@ import {
   setActiveProvider,
   storageMode,
 } from "@/lib/server/keystore";
+import { authorize, PLATFORM_ID } from "@/lib/server/auth";
 import { encryptionConfigured } from "@/lib/server/crypto";
-import { ALL_PROVIDER_IDS } from "@/lib/providers";
+import { ALL_PROVIDER_IDS, PLATFORM_PROVIDER_IDS } from "@/lib/providers";
 
 export const runtime = "nodejs";
 
@@ -33,23 +39,50 @@ function guard() {
   return null;
 }
 
+/** Who may change this provider, and which company's row it lives under. */
+async function writeTarget(request, provider) {
+  if (PLATFORM_PROVIDER_IDS.includes(provider)) {
+    const { ctx, error } = await authorize(request, { admin: true });
+    return error ? { error } : { companyId: PLATFORM_ID, ctx };
+  }
+  const { ctx, error } = await authorize(request, { login: true });
+  return error ? { error } : { companyId: ctx.companyId, ctx };
+}
+
 export async function GET(request) {
-  const companyId = request.nextUrl.searchParams.get("companyId");
-  if (!companyId) return NextResponse.json({ error: "companyId is required." }, { status: 400 });
+  const { ctx, error } = await authorize(request);
+  if (error) return error;
 
   try {
-    const [status, activeProvider] = await Promise.all([
-      getStatus(companyId),
-      getActiveProvider(companyId),
+    const isAdmin = ctx.role === "admin";
+    const [platform, own, activeProvider] = await Promise.all([
+      getStatus(PLATFORM_ID),
+      ctx.demo ? null : getStatus(ctx.companyId),
+      getActiveProvider(),
     ]);
+
+    const status = {};
+    for (const id of ALL_PROVIDER_IDS) {
+      if (id === "gmail") {
+        status[id] = own?.gmail || { connected: false, last4: null, model: null, account: null, connectedAt: null };
+      } else if (ctx.demo) {
+        status[id] = { connected: false, last4: null, model: null, account: null, connectedAt: null };
+      } else if (isAdmin) {
+        status[id] = platform[id];
+      } else {
+        status[id] = { connected: platform[id].connected, last4: null, model: null, account: null, connectedAt: null };
+      }
+    }
+
     return NextResponse.json({
       status,
       activeProvider,
       storage: storageMode(),
       encryptionReady: encryptionConfigured(),
+      role: ctx.role,
     });
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
 
@@ -64,23 +97,26 @@ export async function POST(request) {
     return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
   }
 
-  const { companyId, provider, value, model, account, action } = body || {};
-  if (!companyId) return NextResponse.json({ error: "companyId is required." }, { status: 400 });
+  const { provider, value, model, account, action } = body || {};
 
   try {
-    // Switch the active LLM provider.
+    // Switching the active LLM is a platform-wide decision.
     if (action === "setActive") {
-      const active = await setActiveProvider(companyId, provider);
-      return NextResponse.json({ activeProvider: active, status: await getStatus(companyId) });
+      const { error } = await authorize(request, { admin: true });
+      if (error) return error;
+      const active = await setActiveProvider(PLATFORM_ID, provider);
+      return NextResponse.json({ activeProvider: active, status: await getStatus(PLATFORM_ID) });
     }
 
     if (!ALL_PROVIDER_IDS.includes(provider)) {
       return NextResponse.json({ error: `Unknown provider "${provider}".` }, { status: 400 });
     }
 
-    // Change the model only, leaving the stored key alone.
+    const target = await writeTarget(request, provider);
+    if (target.error) return target.error;
+
     if (action === "setModel") {
-      const status = await saveModel(companyId, provider, model);
+      const status = await saveModel(target.companyId, provider, model);
       return NextResponse.json({ status, storage: storageMode() });
     }
 
@@ -89,10 +125,10 @@ export async function POST(request) {
     }
 
     // Returns masked status only — the key never comes back out.
-    const status = await saveKey(companyId, provider, value.trim(), { model, account });
+    const status = await saveKey(target.companyId, provider, value.trim(), { model, account });
     return NextResponse.json({ status, storage: storageMode() });
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
 
@@ -100,17 +136,18 @@ export async function DELETE(request) {
   const blocked = guard();
   if (blocked) return blocked;
 
-  const companyId = request.nextUrl.searchParams.get("companyId");
   const provider = request.nextUrl.searchParams.get("provider");
-  if (!companyId) return NextResponse.json({ error: "companyId is required." }, { status: 400 });
   if (!ALL_PROVIDER_IDS.includes(provider)) {
     return NextResponse.json({ error: `Unknown provider "${provider}".` }, { status: 400 });
   }
 
   try {
-    const status = await deleteKey(companyId, provider);
+    const target = await writeTarget(request, provider);
+    if (target.error) return target.error;
+
+    const status = await deleteKey(target.companyId, provider);
     return NextResponse.json({ status, storage: storageMode() });
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }

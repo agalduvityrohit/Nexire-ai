@@ -28,7 +28,7 @@ const SECTIONS = [
   { id: "workspace", label: "Workspace", icon: Icon.Settings },
   { id: "team", label: "Team", icon: Icon.Users },
   { id: "screening", label: "Screening & AI", icon: Icon.Sparkle },
-  { id: "connections", label: "API Connections", icon: Icon.Link },
+  { id: "connections", label: "Résumé inbox", icon: Icon.Mail },
   { id: "sources", label: "Sources", icon: Icon.Inbox },
   { id: "notifications", label: "Notifications", icon: Icon.Bell },
   { id: "billing", label: "Plan & billing", icon: Icon.Doc },

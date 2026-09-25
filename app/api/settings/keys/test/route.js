@@ -5,10 +5,11 @@
 // Accepts an optional inline `value` so a key can be tested before saving.
 
 import { NextResponse } from "next/server";
+import { authorize, PLATFORM_ID } from "@/lib/server/auth";
 import { resolveCredential } from "@/lib/server/keystore";
 import { testProvider } from "@/lib/server/llm";
 import { testGmail } from "@/lib/server/gmail";
-import { ALL_PROVIDER_IDS, LLM_PROVIDERS } from "@/lib/providers";
+import { ALL_PROVIDER_IDS, LLM_PROVIDERS, PLATFORM_PROVIDER_IDS } from "@/lib/providers";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -39,6 +40,17 @@ async function testGithubToken(token) {
   };
 }
 
+// Simple authenticated GETs — enough to prove a key is live without spending anything.
+async function testSimple(provider, url, headers) {
+  const started = Date.now();
+  const res = await fetch(url, { headers });
+  if (res.status === 401 || res.status === 403) {
+    throw new Error(`Key rejected (HTTP ${res.status}). Restricted keys (e.g. send-only) can be valid but fail this check.`);
+  }
+  if (!res.ok) throw new Error(`${provider} returned HTTP ${res.status}.`);
+  return { ok: true, provider, latencyMs: Date.now() - started };
+}
+
 export async function POST(request) {
   let body;
   try {
@@ -47,10 +59,16 @@ export async function POST(request) {
     return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
   }
 
-  const { companyId, provider, value, model, account } = body || {};
+  const { provider, value, model, account } = body || {};
   if (!ALL_PROVIDER_IDS.includes(provider)) {
     return NextResponse.json({ error: `Unknown provider "${provider}".` }, { status: 400 });
   }
+
+  // Platform credentials: admin only. Gmail: the signed-in company's own inbox.
+  const isPlatform = PLATFORM_PROVIDER_IDS.includes(provider);
+  const { ctx, error: authError } = await authorize(request, isPlatform ? { admin: true } : { login: true });
+  if (authError) return authError;
+  const companyId = isPlatform ? PLATFORM_ID : ctx.companyId;
 
   let key = typeof value === "string" && value.trim() ? value.trim() : null;
   let resolvedModel = model;
@@ -82,6 +100,15 @@ export async function POST(request) {
     }
     if (provider === "gmail") {
       return NextResponse.json(await testGmail({ user: resolvedAccount, password: key }));
+    }
+    if (provider === "deepgram") {
+      return NextResponse.json(await testSimple("deepgram", "https://api.deepgram.com/v1/projects", { Authorization: `Token ${key}` }));
+    }
+    if (provider === "vapi") {
+      return NextResponse.json(await testSimple("vapi", "https://api.vapi.ai/assistant?limit=1", { Authorization: `Bearer ${key}` }));
+    }
+    if (provider === "resend") {
+      return NextResponse.json(await testSimple("resend", "https://api.resend.com/domains", { Authorization: `Bearer ${key}` }));
     }
     if (LLM_PROVIDERS[provider]) {
       return NextResponse.json(await testProvider({ providerId: provider, apiKey: key, model: resolvedModel }));

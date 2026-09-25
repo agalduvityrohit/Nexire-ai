@@ -33,7 +33,7 @@ const ACTIONS = [
 
 export default function CandidateDetailPage() {
   const { id } = useParams();
-  const { getCandidate, getJob, setCandidateStatus, notify } = useStore();
+  const { getCandidate, getJob, setCandidateStatus, sendInvite, notify } = useStore();
 
   const candidate = getCandidate(id);
 
@@ -87,10 +87,11 @@ export default function CandidateDetailPage() {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => notify(`Interview invite sent to ${candidate.name}`)}
+                disabled={Boolean(candidate.interviewAt)}
+                onClick={() => sendInvite(candidate.id, { force: Boolean(candidate.invitedAt) })}
               >
-                <Icon.Mic size={14} />
-                Invite to interview
+                <Icon.Mail size={14} />
+                {candidate.invitedAt ? "Re-send interview invite" : "Send interview invite"}
               </Button>
             )}
             <Button
@@ -103,6 +104,27 @@ export default function CandidateDetailPage() {
           </>
         }
       />
+
+      {(candidate.interviewAt || candidate.invitedAt) && (
+        <Card className="mb-5 flex flex-wrap items-center gap-3 border-primary/25 bg-primary-soft/30 p-4">
+          <span className="flex size-9 items-center justify-center rounded-full bg-primary text-white">
+            <Icon.Clock size={16} />
+          </span>
+          <div className="min-w-0 flex-1">
+            {candidate.interviewAt ? (
+              <>
+                <div className="text-[13.5px] font-semibold text-ink">Interview booked</div>
+                <div className="text-[13px] text-ink-soft">{new Date(candidate.interviewAt).toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" })}</div>
+              </>
+            ) : (
+              <>
+                <div className="text-[13.5px] font-semibold text-ink">Invitation sent — waiting for them to pick a time</div>
+                <div className="text-[13px] text-muted">Emailed {new Date(candidate.invitedAt).toLocaleDateString(undefined, { dateStyle: "medium" })}</div>
+              </>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* ------------------------------------------------------ summary card */}
       <Card className="mb-5 overflow-hidden">

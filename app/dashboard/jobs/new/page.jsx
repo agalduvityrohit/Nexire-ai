@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import { InterviewSlotsEditor } from "@/components/dashboard/InterviewSlotsEditor";
 import { AnimatePresence, motion } from "framer-motion";
 import { Breadcrumb, PageHeader } from "@/components/dashboard/Shell";
 import {
@@ -110,6 +111,8 @@ function ManualForm({ onPosted }) {
   const [stackInput, setStackInput] = useState("");
   const [errors, setErrors] = useState({});
   const [screening, setScreening] = useState({ ai: true, consent: true, publish: true });
+  const [slots, setSlots] = useState([]);
+  const [managerEmail, setManagerEmail] = useState("");
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -143,6 +146,8 @@ function ManualForm({ onPosted }) {
       stack,
       summary: form.summary || form.description.slice(0, 120),
       status: screening.publish ? "Open" : "Draft",
+      interviewSlots: slots,
+      hiringManagerEmail: managerEmail.trim(),
     });
     notify("Job posted — pipeline is live");
     onPosted(job);
@@ -356,6 +361,24 @@ function ManualForm({ onPosted }) {
             The screening rubric and interview plan below are illustrative — nothing runs them yet. The
             job itself is real and saved to your dashboard.
           </MockNote>
+        </Card>
+
+        {/* ------------------------------------------ interview times */}
+        <Card className="p-5">
+          <div className="flex items-center gap-2">
+            <span className="flex size-6 items-center justify-center rounded-md bg-primary-soft font-mono text-[11px] font-semibold text-primary">
+              4
+            </span>
+            <h2 className="text-[14.5px] font-semibold text-ink">Interview times</h2>
+            <span className="text-[12px] text-muted">· optional, can be added later</span>
+          </div>
+          <Divider className="my-4" />
+          <InterviewSlotsEditor
+            slots={slots}
+            onChange={setSlots}
+            managerEmail={managerEmail}
+            onManagerEmailChange={setManagerEmail}
+          />
         </Card>
 
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">

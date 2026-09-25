@@ -4,6 +4,7 @@
 // unauthenticated requests otherwise.
 
 import { NextResponse } from "next/server";
+import { authorize } from "@/lib/server/auth";
 import { resolveCredential } from "@/lib/server/keystore";
 import { searchGithubUsers, GithubRateLimitError } from "@/lib/server/github";
 
@@ -11,6 +12,10 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 export async function POST(request) {
+  const { ctx, error: authError } = await authorize(request);
+  if (authError) return authError;
+  const companyId = ctx.companyId; // from the session — any companyId in the request is ignored
+
   let body;
   try {
     body = await request.json();
@@ -18,7 +23,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
   }
 
-  const { companyId = null, keyword = "", language = "", location = "" } = body || {};
+  const { keyword = "", language = "", location = "" } = body || {};
   if (!keyword.trim() && !language.trim() && !location.trim()) {
     return NextResponse.json({ error: "Enter a keyword, language, or location to search for." }, { status: 400 });
   }
