@@ -54,7 +54,9 @@ export async function GET(request) {
   if (error) return error;
 
   try {
-    const isAdmin = ctx.role === "admin";
+    // Ask the database, not the cookie: a just-promoted admin shouldn't have to sign in again.
+    const adminCheck = ctx.demo ? null : await authorize(request, { admin: true });
+    const isAdmin = Boolean(adminCheck && !adminCheck.error);
     const [platform, own, activeProvider] = await Promise.all([
       getStatus(PLATFORM_ID),
       ctx.demo ? null : getStatus(ctx.companyId),
@@ -79,7 +81,7 @@ export async function GET(request) {
       activeProvider,
       storage: storageMode(),
       encryptionReady: encryptionConfigured(),
-      role: ctx.role,
+      role: isAdmin ? "admin" : ctx.role,
     });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
