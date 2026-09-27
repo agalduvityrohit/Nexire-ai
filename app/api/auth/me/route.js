@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { authorize, clearSession, readSession } from "@/lib/server/auth";
 import { getCompanyById } from "@/lib/server/companies";
 import { serviceClient } from "@/lib/server/supabase";
+import { serverError } from "@/lib/server/logger";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,6 @@ export async function GET(request) {
       company: { id: company.id, name: company.name, role: company.role },
     });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("auth/me", e) }, { status: 500 });
   }
 }

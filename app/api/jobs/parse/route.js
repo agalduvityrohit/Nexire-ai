@@ -7,8 +7,9 @@
 import { NextResponse } from "next/server";
 import { authorize } from "@/lib/server/auth";
 import { getActiveProvider, resolveCredential } from "@/lib/server/keystore";
-import { extractFromBuffer, UnsupportedFileError } from "@/lib/server/extract";
+import { extractFromBuffer, UnsupportedFileError, validateUploadBatch } from "@/lib/server/extract";
 import { extractJobPostings, resolveModel } from "@/lib/server/llm";
+import { serverError } from "@/lib/server/logger";
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -32,13 +33,16 @@ export async function POST(request) {
     return NextResponse.json({ error: "Upload a file or paste job description text." }, { status: 400 });
   }
 
+  const batch = files.length ? validateUploadBatch(files) : { ok: true, accepted: [], rejected: [] };
+  if (!batch.ok) return NextResponse.json({ error: batch.error }, { status: 400 });
+
   let providerId;
   let credential = null;
   try {
     providerId = await getActiveProvider(companyId);
     credential = await resolveCredential(companyId, providerId);
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("jobs/parse", error) }, { status: 500 });
   }
 
   if (!credential?.key) {
@@ -55,8 +59,9 @@ export async function POST(request) {
   // before calling the model, so one bad file doesn't block the rest.
   const sources = [];
   if (pastedText) sources.push({ label: "Pasted text", text: pastedText });
+  for (const r of batch.rejected) sources.push({ label: r.filename, text: "", error: r.error });
 
-  for (const file of files) {
+  for (const file of batch.accepted) {
     try {
       const buffer = Buffer.from(await file.arrayBuffer());
       const { text } = await extractFromBuffer(buffer, file.name);

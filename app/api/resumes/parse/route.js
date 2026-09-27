@@ -10,6 +10,8 @@ import { authorize } from "@/lib/server/auth";
 import { getActiveProvider, resolveCredential } from "@/lib/server/keystore";
 import { processResumes } from "@/lib/server/pipeline";
 import { resolveModel } from "@/lib/server/llm";
+import { validateUploadBatch } from "@/lib/server/extract";
+import { serverError } from "@/lib/server/logger";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -31,13 +33,19 @@ export async function POST(request) {
 
   if (!files.length) return NextResponse.json({ error: "No files received." }, { status: 400 });
 
+  const batch = validateUploadBatch(files);
+  if (!batch.ok) return NextResponse.json({ error: batch.error }, { status: 400 });
+  if (!batch.accepted.length) {
+    return NextResponse.json({ mode: null, provider: null, model: null, parsed: [], failed: batch.rejected, counts: { received: files.length, parsed: 0, failed: batch.rejected.length, cached: 0 } });
+  }
+
   let providerId = requestedProvider;
   let credential = null;
   try {
     if (!providerId) providerId = await getActiveProvider(companyId);
     credential = await resolveCredential(companyId, providerId);
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("resumes/parse", error) }, { status: 500 });
   }
 
   // No key configured: fall back to a local heuristic so the screen is still
@@ -45,13 +53,13 @@ export async function POST(request) {
   const mode = credential?.key ? providerId : "heuristic";
 
   const docs = await Promise.all(
-    files.map(async (file) => ({
+    batch.accepted.map(async (file) => ({
       buffer: Buffer.from(await file.arrayBuffer()),
       filename: file.name,
     }))
   );
 
-  const { parsed, failed, cachedCount } = await processResumes(
+  const { parsed, failed: parseFailed, cachedCount } = await processResumes(
     docs,
     {
       providerId: credential?.key ? providerId : null,
@@ -61,6 +69,7 @@ export async function POST(request) {
     { companyId }
   );
 
+  const failed = [...batch.rejected, ...parseFailed];
   return NextResponse.json({
     mode,
     provider: credential?.key ? providerId : null,

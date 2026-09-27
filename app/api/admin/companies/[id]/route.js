@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { authorize } from "@/lib/server/auth";
 import { getCompanyDetail } from "@/lib/server/companies";
+import { serverError } from "@/lib/server/logger";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,6 @@ export async function GET(request, { params }) {
     if (!detail) return NextResponse.json({ error: "Company not found." }, { status: 404 });
     return NextResponse.json(detail);
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("admin/companies/id", e) }, { status: 500 });
   }
 }

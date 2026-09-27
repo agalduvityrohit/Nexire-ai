@@ -3,6 +3,7 @@ import { attachSession, authorize } from "@/lib/server/auth";
 import { getCompanyByUser, recordLogin } from "@/lib/server/companies";
 import { clientIp, rateLimited } from "@/lib/server/rateLimit";
 import { serviceClient, supabaseConfigured } from "@/lib/server/supabase";
+import { logInfo, logWarn, serverError } from "@/lib/server/logger";
 
 export const runtime = "nodejs";
 
@@ -26,24 +27,28 @@ export async function POST(request) {
   if (!email || !password) return NextResponse.json({ error: "Enter your email and password." }, { status: 400 });
 
   // Throttle per network AND per account, so one address can't be brute-forced from many IPs.
+  const ip = clientIp(request);
   if (
-    rateLimited(`login-ip:${clientIp(request)}`, { max: 20, windowMs: 900_000 }) ||
+    rateLimited(`login-ip:${ip}`, { max: 20, windowMs: 900_000 }) ||
     rateLimited(`login-acct:${email}`, { max: 8, windowMs: 900_000 })
   ) {
+    logWarn("auth.login_rate_limited", { ip, email });
     return NextResponse.json({ error: "Too many attempts. Wait a few minutes and try again." }, { status: 429 });
   }
 
   const { data, error } = await serviceClient().auth.signInWithPassword({ email, password });
   if (error || !data?.user) {
+    logWarn("auth.login_failed", { ip, email });
     // Same message for "no such user" and "wrong password" — don't reveal which emails exist.
     return NextResponse.json({ error: "Incorrect email or password." }, { status: 401 });
   }
+  logInfo("auth.login_succeeded", { ip, companyUser: data.user.id });
 
   let company;
   try {
     company = await getCompanyByUser(data.user.id);
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("auth/login", e) }, { status: 500 });
   }
   if (!company) {
     return NextResponse.json({ error: "This login has no company attached. Contact support." }, { status: 403 });

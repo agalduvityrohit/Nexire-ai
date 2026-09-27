@@ -23,6 +23,7 @@ import {
 import { authorize, PLATFORM_ID } from "@/lib/server/auth";
 import { encryptionConfigured } from "@/lib/server/crypto";
 import { ALL_PROVIDER_IDS, PLATFORM_PROVIDER_IDS } from "@/lib/providers";
+import { serverError } from "@/lib/server/logger";
 
 export const runtime = "nodejs";
 
@@ -84,7 +85,7 @@ export async function GET(request) {
       role: isAdmin ? "admin" : ctx.role,
     });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("settings/keys", e) }, { status: 500 });
   }
 }
 
@@ -130,7 +131,7 @@ export async function POST(request) {
     const status = await saveKey(target.companyId, provider, value.trim(), { model, account });
     return NextResponse.json({ status, storage: storageMode() });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("settings/keys", e) }, { status: 500 });
   }
 }
 
@@ -150,6 +151,6 @@ export async function DELETE(request) {
     const status = await deleteKey(target.companyId, provider);
     return NextResponse.json({ status, storage: storageMode() });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("settings/keys", e) }, { status: 500 });
   }
 }

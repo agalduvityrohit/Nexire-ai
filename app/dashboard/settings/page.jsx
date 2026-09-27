@@ -112,6 +112,54 @@ export default function SettingsPage() {
   );
 }
 
+// Only meaningful for a real account — the demo has no login to protect.
+// Covers both "I signed up with an email code and never set one" and
+// "I'd like to change my password."
+function PasswordCard() {
+  const { session, notify } = useStore();
+  const [password, setPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  if (!session?.real) return null;
+
+  async function save() {
+    if (password.length < 8) return notify("Use at least 8 characters.", "warn");
+    setSaving(true);
+    try {
+      const res = await fetch("/api/auth/set-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Couldn't set your password.");
+      notify("Password updated");
+      setPassword("");
+    } catch (e) {
+      notify(e.message, "warn");
+    }
+    setSaving(false);
+  }
+
+  return (
+    <Card className="p-5">
+      <SectionTitle eyebrow="Sign-in" title="Password" />
+      <p className="mt-2 text-[12.5px] leading-relaxed text-muted">
+        Set or change the password for signing in at <code className="font-mono">/login</code>. You can always sign in with an
+        emailed code instead, with or without one set.
+      </p>
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+        <Field label="New password" htmlFor="new-password" hint="· at least 8 characters" className="flex-1">
+          <Input id="new-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+        </Field>
+        <Button variant="secondary" size="md" onClick={save} disabled={saving || password.length < 8}>
+          {saving ? "Saving…" : "Save password"}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 function WorkspaceSection() {
   return (
     <div className="space-y-5">
@@ -160,6 +208,8 @@ function WorkspaceSection() {
           </Button>
         </div>
       </Card>
+
+      <PasswordCard />
     </div>
   );
 }

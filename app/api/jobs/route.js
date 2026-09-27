@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import { authorize } from "@/lib/server/auth";
 import { listJobs, upsertJob, deleteJob, releaseCandidatesFromJob } from "@/lib/server/dataStore";
+import { serverError } from "@/lib/server/logger";
 
 export const runtime = "nodejs";
 
@@ -18,7 +19,7 @@ export async function GET(request) {
     const jobs = await listJobs(ctx.companyId);
     return NextResponse.json({ jobs });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("jobs", e) }, { status: 500 });
   }
 }
 
@@ -40,7 +41,7 @@ export async function POST(request) {
     const saved = await upsertJob(ctx.companyId, job);
     return NextResponse.json({ job: saved });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("jobs", e) }, { status: 500 });
   }
 }
 
@@ -57,6 +58,6 @@ export async function DELETE(request) {
     await deleteJob(ctx.companyId, id);
     return NextResponse.json({ ok: true });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("jobs", e) }, { status: 500 });
   }
 }

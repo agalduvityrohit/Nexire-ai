@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { authorize } from "@/lib/server/auth";
 import { resolveCredential } from "@/lib/server/keystore";
 import { listMailboxes, monthsAgo, scanMailbox } from "@/lib/server/gmail";
+import { serverError } from "@/lib/server/logger";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -28,7 +29,7 @@ export async function POST(request) {
   try {
     gmail = await resolveCredential(companyId, "gmail");
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("resumes/gmail/preview", error) }, { status: 500 });
   }
 
   if (!gmail?.key) {

@@ -15,6 +15,7 @@ import {
   getCandidate,
 } from "@/lib/server/dataStore";
 import { sendShortlistInvite } from "@/lib/server/invites";
+import { serverError } from "@/lib/server/logger";
 
 export const runtime = "nodejs";
 
@@ -26,7 +27,7 @@ export async function GET(request) {
     const candidates = await listCandidates(ctx.companyId);
     return NextResponse.json({ candidates });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("candidates", e) }, { status: 500 });
   }
 }
 
@@ -54,7 +55,7 @@ export async function POST(request) {
     const saved = await insertCandidates(ctx.companyId, candidates);
     return NextResponse.json({ candidates: saved });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("candidates", e) }, { status: 500 });
   }
 }
 
@@ -95,7 +96,7 @@ export async function PATCH(request) {
     const fresh = invite?.status === "sent" ? await getCandidate(ctx.companyId, id) : saved;
     return NextResponse.json({ candidate: fresh, invite });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("candidates", e) }, { status: 500 });
   }
 }
 
@@ -120,6 +121,6 @@ export async function DELETE(request) {
     await deleteCandidates(ctx.companyId, ids);
     return NextResponse.json({ ok: true, deleted: ids.length });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("candidates", e) }, { status: 500 });
   }
 }

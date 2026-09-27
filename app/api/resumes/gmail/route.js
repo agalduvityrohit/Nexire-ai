@@ -7,6 +7,7 @@ import { getActiveProvider, resolveCredential } from "@/lib/server/keystore";
 import { fetchResumeAttachments } from "@/lib/server/gmail";
 import { processResumes } from "@/lib/server/pipeline";
 import { resolveModel } from "@/lib/server/llm";
+import { serverError } from "@/lib/server/logger";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -30,7 +31,7 @@ export async function POST(request) {
   try {
     gmail = await resolveCredential(companyId, "gmail");
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("resumes/gmail", error) }, { status: 500 });
   }
 
   if (!gmail?.key) {
@@ -80,7 +81,7 @@ export async function POST(request) {
     providerId = await getActiveProvider(companyId);
     credential = await resolveCredential(companyId, providerId);
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("resumes/gmail", error) }, { status: 500 });
   }
 
   const { parsed, failed } = await processResumes(

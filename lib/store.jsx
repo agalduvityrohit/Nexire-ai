@@ -107,31 +107,56 @@ export function StoreProvider({ children }) {
     setTimeout(() => setToast(null), 3600);
   }, []);
 
-  // Hydrate once on mount (and again if the signed-in company changes) —
-  // real data if Supabase is configured, otherwise stays empty just like
-  // before.
+  // Jobs/candidates load from the database on every hydration below — never
+  // from browser storage or a previous session's state — so switching accounts
+  // (or another tab signing out and a different company signing in on the same
+  // machine) can never show one company's data under another's session.
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const hydrate = useCallback(async () => {
+    setSyncing(true);
+    try {
+      const [jobsRes, candidatesRes] = await Promise.all([
+        fetch(`/api/jobs?companyId=${encodeURIComponent(companyId)}`, { cache: "no-store" }),
+        fetch(`/api/candidates?companyId=${encodeURIComponent(companyId)}`, { cache: "no-store" }),
+      ]);
+      if (jobsRes.ok) setJobs((await jobsRes.json()).jobs || []);
+      if (candidatesRes.ok) setCandidates((await candidatesRes.json()).candidates || []);
+      setLastSyncedAt(new Date());
+    } catch {
+      // Network error / Supabase unreachable — leave whatever was last loaded.
+    } finally {
+      setSyncing(false);
+    }
+  }, [companyId]);
+
+  // Hydrate whenever the signed-in company changes, and again whenever the tab
+  // regains focus or comes back from being hidden — so a dashboard left open
+  // while a candidate is shortlisted or an interview gets booked elsewhere
+  // shows current state as soon as you look back at it, not stale state from
+  // when the tab was opened.
   useEffect(() => {
     if (!authReady) return; // wait until we know whose data to load
-    let cancelled = false;
     setJobs([]);
     setCandidates([]);
-    (async () => {
-      try {
-        const [jobsRes, candidatesRes] = await Promise.all([
-          fetch(`/api/jobs?companyId=${encodeURIComponent(companyId)}`),
-          fetch(`/api/candidates?companyId=${encodeURIComponent(companyId)}`),
-        ]);
-        if (cancelled) return;
-        if (jobsRes.ok) setJobs((await jobsRes.json()).jobs || []);
-        if (candidatesRes.ok) setCandidates((await candidatesRes.json()).candidates || []);
-      } catch {
-        // Network error / Supabase unreachable — start empty, same as before.
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    setLastSyncedAt(null);
+    hydrate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, authReady]);
+
+  useEffect(() => {
+    if (!authReady) return;
+    function onFocus() {
+      if (document.visibilityState === "visible") hydrate();
+    }
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [authReady, hydrate]);
 
   const addJob = useCallback(
     (draft) => {
@@ -737,6 +762,9 @@ export function StoreProvider({ children }) {
       session,
       authReady,
       loadSession,
+      lastSyncedAt,
+      syncing,
+      refreshData: hydrate,
       updateJob,
       sendInvite,
       signIn,
@@ -777,6 +805,9 @@ export function StoreProvider({ children }) {
       session,
       authReady,
       loadSession,
+      lastSyncedAt,
+      syncing,
+      hydrate,
       updateJob,
       sendInvite,
       signIn,

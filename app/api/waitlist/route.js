@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { addToWaitlist } from "@/lib/server/waitlist";
+import { serverError } from "@/lib/server/logger";
 
 export const runtime = "nodejs";
 
@@ -26,6 +27,6 @@ export async function POST(request) {
     });
     return NextResponse.json({ ok: true, entry });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("waitlist", error) }, { status: 500 });
   }
 }

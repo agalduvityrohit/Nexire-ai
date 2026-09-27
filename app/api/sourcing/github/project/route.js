@@ -9,6 +9,7 @@ import { authorize } from "@/lib/server/auth";
 import { getActiveProvider, resolveCredential } from "@/lib/server/keystore";
 import { extractGithubSearchTerms } from "@/lib/server/llm";
 import { findCandidatesByProject, heuristicKeywords } from "@/lib/server/github";
+import { serverError } from "@/lib/server/logger";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -40,7 +41,7 @@ export async function POST(request) {
       resolveCredential(companyId, "github"),
     ]);
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("sourcing/github/project", error) }, { status: 500 });
   }
 
   let keywords;

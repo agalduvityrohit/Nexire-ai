@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { authorize } from "@/lib/server/auth";
 import { resolveCredential } from "@/lib/server/keystore";
 import { searchGithubUsers, GithubRateLimitError } from "@/lib/server/github";
+import { serverError } from "@/lib/server/logger";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -32,7 +33,7 @@ export async function POST(request) {
   try {
     credential = await resolveCredential(companyId, "github");
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("sourcing/github", error) }, { status: 500 });
   }
 
   try {
@@ -52,6 +53,6 @@ export async function POST(request) {
         { status: 429 }
       );
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("sourcing/github", error) }, { status: 500 });
   }
 }

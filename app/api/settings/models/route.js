@@ -12,6 +12,7 @@ import { authorize, PLATFORM_ID } from "@/lib/server/auth";
 import { resolveCredential } from "@/lib/server/keystore";
 import { listModels } from "@/lib/server/llm";
 import { LLM_PROVIDERS } from "@/lib/providers";
+import { serverError } from "@/lib/server/logger";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -38,7 +39,7 @@ export async function POST(request) {
       const cred = await resolveCredential(PLATFORM_ID, provider);
       apiKey = cred?.key || null;
     } catch (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: serverError("settings/models", error) }, { status: 500 });
     }
   }
   if (!apiKey) {

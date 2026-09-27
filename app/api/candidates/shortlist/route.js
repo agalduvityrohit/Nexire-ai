@@ -8,6 +8,7 @@ import { authorize } from "@/lib/server/auth";
 import { getActiveProvider, resolveCredential } from "@/lib/server/keystore";
 import { shortlistCandidates } from "@/lib/server/shortlist";
 import { resolveModel } from "@/lib/server/llm";
+import { serverError } from "@/lib/server/logger";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -40,7 +41,7 @@ export async function POST(request) {
       resolveCredential(companyId, "github"),
     ]);
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("candidates/shortlist", error) }, { status: 500 });
   }
 
   const mode = credential?.key ? providerId : "heuristic";

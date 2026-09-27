@@ -236,7 +236,7 @@ export function DashboardShell({ children }) {
 }
 
 function Topbar({ onMenu }) {
-  const { session } = useStore();
+  const { session, lastSyncedAt, syncing, refreshData } = useStore();
   const real = Boolean(session?.real);
   return (
     <div className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-line bg-canvas/85 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
@@ -261,6 +261,16 @@ function Topbar({ onMenu }) {
       </label>
 
       <div className="ml-auto flex items-center gap-2">
+        <button
+          type="button"
+          onClick={refreshData}
+          disabled={syncing}
+          title={lastSyncedAt ? `Data as of ${lastSyncedAt.toLocaleTimeString()} — click to refresh` : "Loading…"}
+          className="hidden items-center gap-1.5 rounded-[10px] border border-line bg-surface px-2.5 py-1.5 text-[12px] text-muted transition-colors hover:border-line-strong hover:text-ink disabled:opacity-60 sm:flex"
+        >
+          <Icon.Sparkle size={13} className={syncing ? "animate-pulse" : ""} />
+          {syncing ? "Syncing…" : lastSyncedAt ? `Updated ${lastSyncedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "…"}
+        </button>
         {!real && (
           <Badge tone="warn" className="hidden md:inline-flex">
             Demo · sample sandbox

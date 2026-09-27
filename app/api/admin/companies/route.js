@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { authorize } from "@/lib/server/auth";
 import { listCompaniesWithStats } from "@/lib/server/companies";
+import { serverError } from "@/lib/server/logger";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,6 @@ export async function GET(request) {
   try {
     return NextResponse.json({ companies: await listCompaniesWithStats() });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: serverError("admin/companies", e) }, { status: 500 });
   }
 }
