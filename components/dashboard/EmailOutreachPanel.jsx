@@ -1,38 +1,60 @@
 "use client";
 
-// STRUCTURAL ONLY — no email is sent. Mock statuses from lib/outreach-data.js.
+// Real data: every row is a candidate who was actually emailed a shortlist
+// invitation (lib/server/invites.js, via Resend) — "Sent" once the email goes
+// out, "Interview Scheduled" once they book a time. No fake sample rows and
+// nothing invented: Resend delivery/opens aren't tracked back into the app, so
+// there's no "Opened" or "Replied" column here — only what's actually known.
 
 import { useMemo, useState } from "react";
-import { Avatar, Badge, Card, MockNote, Select } from "@/components/ui/Primitives";
+import { Avatar, Badge, Card, Select } from "@/components/ui/Primitives";
 import { Icon } from "@/components/ui/Icons";
-import { EMAIL_STATUSES, emailOutreach } from "@/lib/outreach-data";
+import { EMAIL_STATUSES } from "@/lib/outreach-data";
+import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 export function EmailOutreachPanel() {
+  const { candidates, jobs } = useStore();
   const [status, setStatus] = useState("all");
   const [query, setQuery] = useState("");
 
+  const invited = useMemo(() => {
+    const jobsById = new Map(jobs.map((j) => [j.id, j]));
+    return candidates
+      .filter((c) => c.invitedAt)
+      .map((c) => {
+        const job = jobsById.get(c.jobId);
+        return {
+          id: c.id,
+          name: c.name,
+          email: c.email,
+          role: job?.title || c.role || "—",
+          status: c.interviewAt ? "scheduled" : "sent",
+          subject: job ? `You've been shortlisted for ${job.title}` : "You've been shortlisted",
+          when: c.interviewAt || c.invitedAt,
+        };
+      })
+      .sort((a, b) => (a.when < b.when ? 1 : -1));
+  }, [candidates, jobs]);
+
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return emailOutreach.filter((r) => {
+    return invited.filter((r) => {
       const matchesStatus = status === "all" || r.status === status;
-      const matchesQuery =
-        !q || r.name.toLowerCase().includes(q) || r.role.toLowerCase().includes(q) || r.email.includes(q);
+      const matchesQuery = !q || r.name.toLowerCase().includes(q) || r.role.toLowerCase().includes(q) || (r.email || "").toLowerCase().includes(q);
       return matchesStatus && matchesQuery;
     });
-  }, [status, query]);
+  }, [invited, status, query]);
 
   const counts = useMemo(() => {
     const out = {};
-    for (const key of Object.keys(EMAIL_STATUSES)) {
-      out[key] = emailOutreach.filter((r) => r.status === key).length;
-    }
+    for (const key of Object.keys(EMAIL_STATUSES)) out[key] = invited.filter((r) => r.status === key).length;
     return out;
-  }, []);
+  }, [invited]);
 
   return (
     <>
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-2">
         {Object.entries(EMAIL_STATUSES).map(([key, meta]) => (
           <button
             key={key}
@@ -62,11 +84,7 @@ export function EmailOutreachPanel() {
               className="h-9 w-full rounded-[10px] border border-line bg-surface pl-9 pr-3 text-[13px] text-ink placeholder:text-faint shadow-xs outline-none transition-colors hover:border-line-strong focus:border-primary focus:ring-4 focus:ring-primary/10"
             />
           </label>
-          <Select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="h-9 w-auto min-w-[180px] text-[13px]"
-          >
+          <Select value={status} onChange={(e) => setStatus(e.target.value)} className="h-9 w-auto min-w-[180px] text-[13px]">
             <option value="all">All statuses</option>
             {Object.entries(EMAIL_STATUSES).map(([key, meta]) => (
               <option key={key} value={key}>
@@ -79,14 +97,11 @@ export function EmailOutreachPanel() {
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto thin-scrollbar">
-          <table className="w-full min-w-[760px] border-collapse text-left">
+          <table className="w-full min-w-[640px] border-collapse text-left">
             <thead>
               <tr className="border-b border-line bg-canvas-deep/40">
-                {["Candidate", "Role", "Subject", "Status", "Opens", "Last updated"].map((h) => (
-                  <th
-                    key={h}
-                    className="px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted"
-                  >
+                {["Candidate", "Role", "Subject", "Status", "When"].map((h) => (
+                  <th key={h} className="px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted">
                     {h}
                   </th>
                 ))}
@@ -115,8 +130,7 @@ export function EmailOutreachPanel() {
                         {meta.label}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-[12.5px] tabular-nums text-ink-soft">{r.opens}</td>
-                    <td className="px-4 py-3 text-[12px] tabular-nums text-muted">{r.updatedAt}</td>
+                    <td className="px-4 py-3 text-[12px] tabular-nums text-muted">{new Date(r.when).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</td>
                   </tr>
                 );
               })}
@@ -125,14 +139,11 @@ export function EmailOutreachPanel() {
         </div>
 
         {!rows.length && (
-          <div className="px-6 py-14 text-center text-[13px] text-muted">No candidates match those filters.</div>
+          <div className="px-6 py-14 text-center text-[13px] text-muted">
+            {invited.length ? "No candidates match those filters." : "Nothing sent yet — shortlisting a candidate on a job with interview times set emails them automatically."}
+          </div>
         )}
       </Card>
-
-      <MockNote className="mt-4">
-        Structure only — no email is sent from this screen. Statuses are mock data so the layout and the
-        status model can be reviewed before Resend or SendGrid is wired in.
-      </MockNote>
     </>
   );
 }
