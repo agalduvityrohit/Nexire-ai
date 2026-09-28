@@ -695,14 +695,22 @@ export function StoreProvider({ children }) {
   /* ------------------------------------------------------------ debrief */
   // Candidates who've completed the AI interview, with evidence-based
   // reports — see lib/debriefData.js. STRUCTURAL / MOCK: the interview
-  // engine isn't built (same caveat as the Interviewer tab), so this seeds
-  // from fixed mock data rather than /api/candidates. Status changes and
-  // hire/reject overrides update this in-memory state so they survive
-  // navigating away and back, same pattern as uploadJob/mailJob — but, like
-  // the rest of the interview-engine surface, don't hit a real database
-  // since there's no real debrief record to persist yet.
+  // engine isn't built (same caveat as the Interviewer tab), so this is
+  // sample data, not real records. Shown ONLY in the demo, as an example of
+  // what the finished feature looks like — a real signed-in company has no
+  // actual debrief data yet, so it sees a genuine empty state instead of
+  // someone else's sample reports. Status changes and hire/reject overrides
+  // update this in-memory state so they survive navigating away and back,
+  // same pattern as uploadJob/mailJob — but, like the rest of the
+  // interview-engine surface, don't hit a real database since there's no real
+  // debrief record to persist yet.
 
-  const [debriefCandidates, setDebriefCandidates] = useState(DEBRIEF_CANDIDATES);
+  const [debriefCandidates, setDebriefCandidates] = useState([]);
+
+  useEffect(() => {
+    if (!authReady) return;
+    setDebriefCandidates(companyId === "demo-company" ? DEBRIEF_CANDIDATES : []);
+  }, [companyId, authReady]);
 
   const updateDebriefCandidate = useCallback((id, patch) => {
     setDebriefCandidates((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
