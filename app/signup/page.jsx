@@ -24,7 +24,7 @@ async function postJson(url, body) {
 
 export default function SignupPage() {
   const router = useRouter();
-  const { loadSession } = useStore();
+  const { session, signOut, loadSession } = useStore();
 
   const [step, setStep] = useState("details"); // details | code | password | fallback-password
   const [companyName, setCompanyName] = useState("");
@@ -34,6 +34,13 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+
+  // See app/login/page.jsx#goToDemo — same reasoning: /dashboard shows
+  // whatever session cookie is present, so make sure there isn't one.
+  async function goToDemo() {
+    if (session?.real) await signOut();
+    router.push("/dashboard");
+  }
 
   async function requestCode(e) {
     e.preventDefault();
@@ -203,9 +210,9 @@ export default function SignupPage() {
           </p>
           <p className="mt-5 text-center text-[12.5px] text-muted">
             Just browsing?{" "}
-            <Link href="/dashboard" className="font-medium text-ink-soft hover:text-ink">
+            <button type="button" onClick={goToDemo} className="font-medium text-ink-soft underline-offset-2 hover:text-ink hover:underline">
               Explore the demo dashboard
-            </Link>
+            </button>
           </p>
         </>
       )}

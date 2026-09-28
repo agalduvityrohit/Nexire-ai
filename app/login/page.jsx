@@ -20,7 +20,7 @@ async function postJson(url, body) {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { loadSession } = useStore();
+  const { session, signOut, loadSession } = useStore();
   const [mode, setMode] = useState("password"); // password | code | code-entry
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -58,6 +58,14 @@ export default function LoginPage() {
       return setError(json.error || "Couldn't send the code.");
     }
     setMode("code-entry");
+  }
+
+  // "Explore demo dashboard" has to mean the demo — not whatever account
+  // happens to still be signed in. /dashboard reads the real session cookie
+  // if one exists, so this signs out first whenever it does.
+  async function goToDemo() {
+    if (session?.real) await signOut();
+    router.push("/dashboard");
   }
 
   async function verifyCode(e) {
@@ -183,7 +191,7 @@ export default function LoginPage() {
         <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
           Explore the full dashboard with realistic mock data — no signup, no credentials.
         </p>
-        <Button href="/dashboard" variant="accent" size="lg" className="mt-5 w-full">
+        <Button type="button" onClick={goToDemo} variant="accent" size="lg" className="mt-5 w-full">
           Explore demo dashboard
           <Icon.ArrowRight size={16} />
         </Button>
