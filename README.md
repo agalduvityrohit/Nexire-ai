@@ -77,8 +77,32 @@ Defined once in `@theme` and used as Tailwind utilities (`bg-canvas`, `text-ink`
 Fully responsive at 375px and up; every screen was checked for horizontal overflow at mobile and tablet
 widths.
 
-## Not included, deliberately
+## Not built yet
 
-No auth, no database, no API calls, no real uploads, no AI logic, no real search, and no permission
-enforcement — the company/role selection is UI only and every role lands on the same dashboard. No
-candidate-facing screens of any kind. Mock notices appear inline where a real integration would go.
+The AI interviewer (Arjun), automated calling, open-market and GitHub sourcing at scale, a candidate
+consent / data-rights flow, and per-company retention settings are not live — the site marks them
+"Coming soon". Accounts, résumé import, screening, shortlist emails and interview scheduling are real.
+
+## The public demo dashboard — read before touching it
+
+The no-signup demo (10 jobs, 496 candidates) is **static data that ships with the app**.
+It must never depend on Supabase: a free Supabase project pauses itself after about a
+week of inactivity, and when the demo read from it, the demo went empty.
+
+- **Data:** `lib/demoData.json`, loaded into server memory by `lib/demoDataset.js` and
+  seeded in `lib/server/dataStore.js` (`seedDemoOnce`). Dates are stored as offsets, so
+  they never go stale.
+- **Rebuild it** from the 500 sample résumé PDFs + manifest:
+  `node scripts/build-demo-data.mjs "<folder with the PDFs and resumes_500_manifest.csv>"`
+- **Never** change `db()` in `dataStore.js` so the demo (`DEMO_COMPANY_ID`) reads the
+  database, and never remove an `await demoReady(companyId)`.
+- **Guarded automatically:** `scripts/verify-demo.mjs` runs before every build (including
+  on Vercel) and fails the build if the dataset is wrong or the demo is coupled to the
+  database again. Run it any time with `npm run check:demo`.
+- **After every deploy** run `npm run check:live` — it asks the live site for the demo and
+  fails if it isn't exactly 10 jobs / 496 candidates.
+- Edits a visitor makes in the demo live in memory and reset when the server instance
+  recycles — that is intentional.
+
+Real accounts (UUID company ids) use Supabase. If it's paused, sign-in and real dashboards
+are down until it's restored, but the demo is unaffected.

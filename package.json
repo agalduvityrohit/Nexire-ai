@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "prebuild": "node scripts/verify-demo.mjs",
+    "check:demo": "node scripts/verify-demo.mjs",
+    "check:live": "node scripts/check-demo-live.mjs https://nexireai.vercel.app"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.2",
