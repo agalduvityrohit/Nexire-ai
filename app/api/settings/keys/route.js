@@ -58,11 +58,10 @@ export async function GET(request) {
     // Ask the database, not the cookie: a just-promoted admin shouldn't have to sign in again.
     const adminCheck = ctx.demo ? null : await authorize(request, { admin: true });
     const isAdmin = Boolean(adminCheck && !adminCheck.error);
-    const [platform, own, activeProvider] = await Promise.all([
-      getStatus(PLATFORM_ID),
-      ctx.demo ? null : getStatus(ctx.companyId),
-      getActiveProvider(),
-    ]);
+    // The demo has no keys of any kind — answer without touching the database.
+    const [platform, own, activeProvider] = ctx.demo
+      ? [null, null, await getActiveProvider(ctx.companyId)]
+      : await Promise.all([getStatus(PLATFORM_ID), getStatus(ctx.companyId), getActiveProvider()]);
 
     const status = {};
     for (const id of ALL_PROVIDER_IDS) {
