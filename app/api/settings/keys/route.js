@@ -56,7 +56,8 @@ export async function GET(request) {
 
   try {
     // Ask the database, not the cookie: a just-promoted admin shouldn't have to sign in again.
-    const adminCheck = ctx.demo ? null : await authorize(request, { admin: true });
+    // quiet: this is a routine "am I admin?" probe on every settings load, not an attack to log.
+    const adminCheck = ctx.demo ? null : await authorize(request, { admin: true, quiet: true });
     const isAdmin = Boolean(adminCheck && !adminCheck.error);
     // The demo has no keys of any kind — answer without touching the database.
     const [platform, own, activeProvider] = ctx.demo

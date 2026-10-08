@@ -6,7 +6,8 @@
 
 import { NextResponse } from "next/server";
 import { authorize } from "@/lib/server/auth";
-import { listJobs, upsertJob, deleteJob, releaseCandidatesFromJob } from "@/lib/server/dataStore";
+import { getJob, listJobs, upsertJob, deleteJob, releaseCandidatesFromJob } from "@/lib/server/dataStore";
+import { logEvent } from "@/lib/server/events";
 import { serverError } from "@/lib/server/logger";
 
 export const runtime = "nodejs";
@@ -38,7 +39,9 @@ export async function POST(request) {
   if (!job?.id || !job?.title) return NextResponse.json({ error: "job.id and job.title are required." }, { status: 400 });
 
   try {
+    const isNew = !ctx.demo && !(await getJob(ctx.companyId, job.id));
     const saved = await upsertJob(ctx.companyId, job);
+    if (isNew) await logEvent({ type: "jd_posted", headers: request.headers, companyId: ctx.companyId, userId: ctx.userId, path: "/dashboard/jobs/new", meta: { status: job.status || "Open" } });
     return NextResponse.json({ job: saved });
   } catch (e) {
     return NextResponse.json({ error: serverError("jobs", e) }, { status: 500 });

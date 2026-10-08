@@ -190,3 +190,53 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ------------------------------------------------------------------------------
+   Admin console dark mode. Scoped to [data-admin-theme] (set by
+   components/admin/AdminShell.jsx), so only /admin follows the OS dark setting —
+   the public site and the company dashboard stay light. Utilities such as
+   bg-surface and text-ink read these variables, so overriding them re-themes
+   everything inside without touching any component.
+   Teal is lifted a step: the light-mode #0e5c54 is too dark to read as text on a
+   dark canvas (4.77:1 for body-size text here, vs ~2:1 for the original).
+   ------------------------------------------------------------------------------ */
+@media (prefers-color-scheme: dark) {
+  [data-admin-theme] {
+    color-scheme: dark;
+
+    --color-canvas: #101412;
+    --color-canvas-deep: #0b0e0d;
+    --color-surface: #171c1a;
+    --color-raised: #1b211f;
+
+    --color-line: #2a312e;
+    --color-line-soft: #212725;
+    --color-line-strong: #38413d;
+
+    --color-ink: #eceee9;
+    --color-ink-soft: #c3c8c1;
+    --color-muted: #959c95;
+    --color-faint: #7b837c;
+
+    --color-primary: #229084;
+    --color-primary-hover: #2aa093;
+    --color-primary-deep: #0f2f2b;
+    --color-primary-soft: #14302c;
+    --color-primary-mid: #1f4a44;
+
+    --color-accent: #e8744b;
+    --color-accent-hover: #f08560;
+    --color-accent-soft: #3a2118;
+
+    --color-success: #4cb88a;
+    --color-success-soft: #14291f;
+    --color-warn: #e0a640;
+    --color-warn-soft: #30250f;
+    --color-danger: #e56b5f;
+    --color-danger-soft: #321a17;
+    --color-info: #7d93e0;
+    --color-info-soft: #1a2036;
+    --color-violet: #a58ae0;
+    --color-violet-soft: #251d3a;
+  }
+}

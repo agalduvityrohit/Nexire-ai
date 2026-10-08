@@ -106,6 +106,7 @@ export function PublicFooter() {
               ["What we do", "/#what-we-do"],
               ["Get started", "/login"],
               ["Dashboard", "/dashboard"],
+              ["Privacy", "/privacy"],
             ].map(([label, href]) => (
               <Link
                 key={label}

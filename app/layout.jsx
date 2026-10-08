@@ -2,6 +2,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { StoreProvider } from "@/lib/store";
 import { Toaster } from "@/components/ui/Toast";
+import { AnalyticsClient } from "@/components/public/AnalyticsClient";
+import { PageViewTracker } from "@/components/public/PageViewTracker";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -23,6 +25,8 @@ export default function RootLayout({ children }) {
           {children}
           <Toaster />
         </StoreProvider>
+        <PageViewTracker />
+        <AnalyticsClient />
       </body>
     </html>
   );

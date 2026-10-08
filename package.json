@@ -6,12 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "prebuild": "node scripts/verify-demo.mjs",
+    "prebuild": "node scripts/verify-demo.mjs && node scripts/verify-security.mjs",
     "check:demo": "node scripts/verify-demo.mjs",
-    "check:live": "node scripts/check-demo-live.mjs https://nexireai.vercel.app"
+    "check:live": "node scripts/check-demo-live.mjs https://nexireai.vercel.app",
+    "check:security": "node scripts/verify-security.mjs",
+    "test:traffic": "node scripts/test-traffic.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.2",
+    "@vercel/analytics": "^2.0.1",
     "framer-motion": "^12.23.12",
     "imapflow": "^1.6.6",
     "mammoth": "^1.12.1",

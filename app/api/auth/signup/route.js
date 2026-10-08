@@ -1,7 +1,9 @@
 // Create a company account: Supabase Auth user + companies row, then sign in.
 
 import { NextResponse } from "next/server";
-import { attachSession, authorize } from "@/lib/server/auth";
+import { attachSession, authorize, effectiveRole } from "@/lib/server/auth";
+import { logEvent } from "@/lib/server/events";
+import { maskEmail } from "@/lib/server/eventsCore";
 import { createCompany } from "@/lib/server/companies";
 import { clientIp, rateLimited } from "@/lib/server/rateLimit";
 import { serviceClient, supabaseConfigured } from "@/lib/server/supabase";
@@ -73,10 +75,13 @@ export async function POST(request) {
     );
   }
   logInfo("auth.signup_succeeded", { ip, companyId: company.id });
+  // verified:false — a password signup never proves the address is theirs (it's
+  // auto-confirmed); only the emailed-code path does. The funnel counts accordingly.
+  await logEvent({ type: "signup", headers: request.headers, companyId: company.id, userId: data.user.id, path: "/signup", meta: { method: "password", verified: false, email_masked: maskEmail(email) } });
 
   const response = NextResponse.json({
     user: { email, name },
-    company: { id: company.id, name: company.name, role: company.role },
+    company: { id: company.id, name: company.name, role: effectiveRole(company.role, email) },
   });
   return attachSession(response, { userId: data.user.id, company });
 }

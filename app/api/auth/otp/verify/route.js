@@ -8,7 +8,9 @@
 
 import { NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { attachSession, authorize } from "@/lib/server/auth";
+import { attachSession, authorize, effectiveRole } from "@/lib/server/auth";
+import { isNewDevice, logEvent } from "@/lib/server/events";
+import { accountHash, clientInfo, maskEmail } from "@/lib/server/eventsCore";
 import { createCompany, findAuthUserByEmail, getCompanyByUser, recordLogin } from "@/lib/server/companies";
 import { verifyCode } from "@/lib/server/otp";
 import { clientIp, rateLimited } from "@/lib/server/rateLimit";
@@ -61,6 +63,7 @@ export async function POST(request) {
   }
   if (!verdict.ok) {
     logWarn("auth.otp_verify_failed", { ip, email, reason: verdict.reason });
+    await logEvent({ type: "login_failed", headers: request.headers, path: "/login", meta: { method: "otp", reason: verdict.reason, account_hash: accountHash(email), email_masked: maskEmail(email) } });
     return NextResponse.json({ error: REASON_MESSAGE[verdict.reason] || "That code isn't right." }, { status: 401 });
   }
 
@@ -85,10 +88,14 @@ export async function POST(request) {
 
     await recordLogin(company).catch(() => {});
     logInfo("auth.otp_login_succeeded", { ip, companyId: company.id });
+    const newDevice = await isNewDevice(existing.id, clientInfo(request.headers).device);
+    const base = { headers: request.headers, companyId: company.id, userId: existing.id, path: "/login" };
+    await logEvent({ ...base, type: "login_success", meta: { method: "otp" } });
+    if (newDevice) await logEvent({ ...base, type: "new_device_login", meta: { method: "otp", email_masked: maskEmail(email) } });
     const response = NextResponse.json({
       isNewAccount: false,
       user: { email, name: existing.user_metadata?.name || "" },
-      company: { id: company.id, name: company.name, role: company.role },
+      company: { id: company.id, name: company.name, role: effectiveRole(company.role, email) },
     });
     return attachSession(response, { userId: existing.id, company });
   }
@@ -122,10 +129,11 @@ export async function POST(request) {
   }
 
   logInfo("auth.otp_signup_succeeded", { ip, companyId: company.id });
+  await logEvent({ type: "signup", headers: request.headers, companyId: company.id, userId: data.user.id, path: "/signup", meta: { method: "otp", verified: true, email_masked: maskEmail(email) } });
   const response = NextResponse.json({
     isNewAccount: true,
     user: { email, name },
-    company: { id: company.id, name: company.name, role: company.role },
+    company: { id: company.id, name: company.name, role: effectiveRole(company.role, email) },
   });
   return attachSession(response, { userId: data.user.id, company });
 }

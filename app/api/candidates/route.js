@@ -15,6 +15,7 @@ import {
   getCandidate,
 } from "@/lib/server/dataStore";
 import { sendShortlistInvite } from "@/lib/server/invites";
+import { logEvent } from "@/lib/server/events";
 import { serverError } from "@/lib/server/logger";
 
 export const runtime = "nodejs";
@@ -53,6 +54,8 @@ export async function POST(request) {
 
   try {
     const saved = await insertCandidates(ctx.companyId, candidates);
+    // Counts only — no names, emails or file names ever go into the event log.
+    await logEvent({ type: "resumes_ingested", headers: request.headers, companyId: ctx.companyId, userId: ctx.userId, path: "/dashboard/sourcing", meta: { count: saved.length, source: candidates[0]?.source || null } });
     return NextResponse.json({ candidates: saved });
   } catch (e) {
     return NextResponse.json({ error: serverError("candidates", e) }, { status: 500 });
@@ -90,6 +93,7 @@ export async function PATCH(request) {
     // jobId may be set in this same patch, so read the job from the saved row.
     let invite = null;
     if (becomingShortlisted) {
+      await logEvent({ type: "shortlisted", headers: request.headers, companyId: ctx.companyId, userId: ctx.userId, path: "/dashboard/candidates", meta: { job_id: saved?.jobId || before.jobId || null } });
       invite = await sendShortlistInvite({ ctx, request, candidateId: id });
     }
 
