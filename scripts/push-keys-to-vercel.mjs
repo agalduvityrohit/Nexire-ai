@@ -1,7 +1,10 @@
 // One-time helper: copies the AI-provider keys from your local .env.local to Vercel
 // (Production + Preview), so the deployed site uses the same keys you had locally.
 //
-//   node scripts/push-keys-to-vercel.mjs          (run it yourself, in this project's folder)
+//   node scripts/push-keys-to-vercel.mjs                 (all AI keys)
+//   node scripts/push-keys-to-vercel.mjs --only mistral  (just Mistral + the default provider)
+//
+// Run it yourself, in this project's folder.
 //
 // Values are piped straight from the file into `vercel env add` — they are never printed,
 // logged, or put in a command line. Only the NAMES are shown. Names already set on Vercel
@@ -17,7 +20,11 @@ const envFile = join(root, ".env.local");
 if (!existsSync(envFile)) { console.error("No .env.local found in this folder."); process.exit(1); }
 
 const LLMS = ["GEMINI", "OPENAI", "ANTHROPIC", "GROQ", "CEREBRAS", "MISTRAL", "OPENROUTER", "NVIDIA"];
-const WANT = [...LLMS.map((p) => `${p}_API_KEY`), ...LLMS.map((p) => `${p}_MODEL`), "DEFAULT_LLM_PROVIDER"];
+const oi = process.argv.indexOf("--only");
+const only = oi > -1 ? String(process.argv[oi + 1] || "").toUpperCase().split(",").filter(Boolean) : null;
+const picked = only ? LLMS.filter((p) => only.includes(p)) : LLMS;
+if (only && !picked.length) { console.error(`Unknown provider. Choose from: ${LLMS.join(", ").toLowerCase()}`); process.exit(1); }
+const WANT = [...picked.map((p) => `${p}_API_KEY`), ...picked.map((p) => `${p}_MODEL`), "DEFAULT_LLM_PROVIDER"];
 
 const local = {};
 for (const line of readFileSync(envFile, "utf8").split(/\r?\n/)) {
