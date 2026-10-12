@@ -28,11 +28,11 @@ function walk(dir, out = []) {
 }
 
 /* 1. /admin is gated on the server, with a real 404 ------------------------ */
-const layout = read("app/admin/layout.jsx");
-if (!layout) fail("app/admin/layout.jsx is missing");
+const layout = read("app/admin/(console)/layout.jsx");
+if (!layout) fail("app/admin/(console)/layout.jsx is missing");
 else {
-  if (/^\s*["']use client["']/m.test(layout)) fail('app/admin/layout.jsx is a client component — the admin gate must run on the server');
-  if (!/await\s+requireAdminPage\(\)/.test(layout)) fail("app/admin/layout.jsx no longer awaits requireAdminPage() — /admin would be open");
+  if (/^\s*["']use client["']/m.test(layout)) fail('app/admin/(console)/layout.jsx is a client component — the admin gate must run on the server');
+  if (!/await\s+requireAdminPage\(\)/.test(layout)) fail("app/admin/(console)/layout.jsx no longer awaits requireAdminPage() — /admin would be open");
 }
 const gate = read("lib/server/adminGate.js");
 if (!gate || !/notFound\(\)/.test(gate) || !/resolveAdmin/.test(gate)) fail("lib/server/adminGate.js must call resolveAdmin() and notFound()");
@@ -40,11 +40,24 @@ if (!gate || !/notFound\(\)/.test(gate) || !/resolveAdmin/.test(gate)) fail("lib
 /* 2. every admin API route is admin-only ------------------------------------ */
 for (const f of walk("app/api/admin")) {
   if (!f.endsWith("route.js")) continue;
+  if (f === "app/api/admin/login/route.js") continue; // the sign-in door itself: checked separately below
   const src = read(f);
   if (!/authorize\([^)]*admin:\s*true/.test(src)) fail(`${f} doesn't call authorize(request, { admin: true })`);
 }
-const actions = read("app/admin/traffic/actions.js");
-if (!actions || !/resolveAdmin/.test(actions)) fail("app/admin/traffic/actions.js (a public endpoint) must re-check resolveAdmin() itself");
+const actions = read("app/admin/(console)/traffic/actions.js");
+if (!actions || !/resolveAdmin/.test(actions)) fail("app/admin/(console)/traffic/actions.js (a public endpoint) must re-check resolveAdmin() itself");
+
+// The sign-in door must check the allowlist before logging anyone in, and must never
+// hand a session to an account that wouldn't pass the admin gate.
+const adminLogin = read("app/api/admin/login/route.js");
+if (!adminLogin) fail("app/api/admin/login/route.js is missing");
+else {
+  if (!/adminEmailAllowed\(email\)/.test(adminLogin)) fail("the admin login no longer checks the ADMIN_EMAILS allowlist");
+  if (adminLogin.indexOf("adminEmailAllowed(email)") > adminLogin.indexOf("passwordLogin(request)")) fail("the admin login must check the allowlist BEFORE signing anyone in");
+  if (!/role !== "admin"/.test(adminLogin)) fail("the admin login no longer refuses a session to non-admin accounts");
+}
+if (!read("app/admin/(console)/layout.jsx") || read("app/admin/layout.jsx") == null) fail("app/admin/layout.jsx is missing");
+if (read("app/admin/layout.jsx") && /requireAdminPage/.test(read("app/admin/layout.jsx"))) fail("app/admin/layout.jsx must stay gate-free (the gate lives in (console)) so /admin/login can render");
 
 /* 3. the allowlist is real, and fails closed -------------------------------- */
 const auth = read("lib/server/auth.js");

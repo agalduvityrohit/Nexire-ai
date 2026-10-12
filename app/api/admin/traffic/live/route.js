@@ -13,7 +13,8 @@ export async function GET(request) {
   if (error) return error; // 404 for anyone who isn't an allow-listed admin
 
   try {
-    const events = await getLiveEvents({ includeSample: request.nextUrl.searchParams.get("sample") === "1" });
+    const sp = request.nextUrl.searchParams;
+    const events = await getLiveEvents({ includeSample: sp.get("sample") === "1", hidePageViews: sp.get("pv") === "0" });
     return NextResponse.json({ events }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     return NextResponse.json({ error: serverError("admin/traffic/live", e) }, { status: 500 });

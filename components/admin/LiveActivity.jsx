@@ -4,7 +4,7 @@
 // Times are formatted in the browser — formatting them on the server would show the
 // server's timezone and trip a hydration mismatch.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/Primitives";
 
 const TONE = {
@@ -21,8 +21,9 @@ function ago(iso, now) {
   return `${Math.floor(s / 86400)} d ago`;
 }
 
-export function LiveActivity({ initial, includeSample }) {
+export function LiveActivity({ initial, includeSample, hidePageViews: hideInitially = false }) {
   const [rows, setRows] = useState(initial);
+  const [hidePv, setHidePv] = useState(hideInitially);
   const [now, setNow] = useState(null);
   const [updated, setUpdated] = useState(null);
   const [error, setError] = useState("");
@@ -31,7 +32,7 @@ export function LiveActivity({ initial, includeSample }) {
   const refresh = useCallback(async () => {
     setBusy(true);
     try {
-      const res = await fetch(`/api/admin/traffic/live${includeSample ? "?sample=1" : ""}`, { cache: "no-store" });
+      const res = await fetch(`/api/admin/traffic/live?pv=${hidePv ? 0 : 1}${includeSample ? "&sample=1" : ""}`, { cache: "no-store" });
       if (!res.ok) throw new Error(res.status === 404 ? "Signed out — reload the page." : "Couldn't refresh.");
       setRows((await res.json()).events);
       setError("");
@@ -41,7 +42,14 @@ export function LiveActivity({ initial, includeSample }) {
     } finally {
       setBusy(false);
     }
-  }, [includeSample]);
+  }, [includeSample, hidePv]);
+
+  // Re-fetch as soon as the toggle changes (the first render already has the matching rows).
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    refresh();
+  }, [refresh]);
 
   useEffect(() => {
     setNow(Date.now());
@@ -59,6 +67,10 @@ export function LiveActivity({ initial, includeSample }) {
         <span aria-live="polite">
           {error ? <span className="text-danger">{error}</span> : <>Refreshes every 30 s{updated ? <> · updated {updated.toLocaleTimeString()}</> : null}</>}
         </span>
+        <label className="flex items-center gap-2 text-ink-soft">
+          <input type="checkbox" checked={hidePv} onChange={(e) => setHidePv(e.target.checked)} className="accent-[var(--color-primary)]" />
+          Hide page views
+        </label>
         <button type="button" onClick={refresh} disabled={busy} className="rounded-[8px] border border-line bg-surface px-2.5 py-1 font-medium text-ink-soft transition-colors hover:border-line-strong hover:text-ink disabled:opacity-60">
           {busy ? "Refreshing…" : "Refresh now"}
         </button>
@@ -89,6 +101,7 @@ export function LiveActivity({ initial, includeSample }) {
                   <td className="px-3 py-2 font-mono text-[12px] text-ink-soft">{r.email || <span className="text-faint">—</span>}</td>
                   <td className="px-3 py-2">
                     <Badge tone={TONE[r.type] || "neutral"}>{r.label}</Badge>
+                    {r.count != null && <span className="ml-2 text-[12px] font-medium tabular-nums text-ink-soft">×{r.count}</span>}
                     {r.path && r.type === "page_view" && <span className="ml-2 text-[12px] text-muted">{r.path}</span>}
                   </td>
                   <td className="px-3 py-2 text-ink-soft">{r.city || <span className="text-faint">—</span>}</td>

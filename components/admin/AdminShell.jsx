@@ -1,7 +1,7 @@
 "use client";
 
 // Chrome for every /admin page. By the time this renders, the server layout
-// (app/admin/layout.jsx) has already proven the visitor is an allow-listed admin —
+// (app/admin/(console)/layout.jsx) has already proven the visitor is an allow-listed admin —
 // anyone else got a 404 before reaching here — so there is no client-side gate.
 //
 // data-admin-theme switches the colour tokens to a dark palette when the OS asks for
@@ -16,8 +16,8 @@ import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { href: "/admin", label: "Companies", match: (p) => p === "/admin" || p.startsWith("/admin/companies") },
-  { href: "/admin/traffic", label: "Traffic", match: (p) => p.startsWith("/admin/traffic") },
+  { href: "/admin", label: "Console", match: (p) => p === "/admin" || p.startsWith("/admin/companies") },
+  { href: "/admin/traffic", label: "Analytics", match: (p) => p.startsWith("/admin/traffic") },
   { href: "/admin/keys", label: "API keys", match: (p) => p.startsWith("/admin/keys") },
 ];
 
@@ -59,7 +59,7 @@ export function AdminShell({ children }) {
               type="button"
               onClick={async () => {
                 await signOut();
-                router.push("/login");
+                router.push("/admin/login");
               }}
               className="text-muted transition-colors hover:text-ink"
             >
