@@ -1,12 +1,12 @@
 // Credential management.
 //
 // Two kinds of credential, two rules:
-//   - Platform keys (LLMs, GitHub, Vapi, Deepgram, Resend): shared by every
+//   - Platform keys (LLMs, Vapi, Deepgram, Resend): shared by every
 //     company, stored under PLATFORM_ID, editable ONLY by an admin. Non-admins
 //     can read a "connected or not" flag (their dashboard needs to know whether
 //     parsing will use an AI model) but never a last-4, model or account.
-//   - Gmail: a company's own inbox. That company may save/remove it; nobody else
-//     can see it.
+//   - Gmail and GitHub: a company's own inbox and its own GitHub token. That
+//     company may save/remove them; nobody else can see them (admins included).
 //
 // The companyId in the request is ignored — identity comes from the session.
 
@@ -22,7 +22,7 @@ import {
 } from "@/lib/server/keystore";
 import { authorize, PLATFORM_ID } from "@/lib/server/auth";
 import { encryptionConfigured } from "@/lib/server/crypto";
-import { ALL_PROVIDER_IDS, PLATFORM_PROVIDER_IDS } from "@/lib/providers";
+import { ALL_PROVIDER_IDS, COMPANY_PROVIDER_IDS, PLATFORM_PROVIDER_IDS } from "@/lib/providers";
 import { serverError } from "@/lib/server/logger";
 
 export const runtime = "nodejs";
@@ -66,8 +66,8 @@ export async function GET(request) {
 
     const status = {};
     for (const id of ALL_PROVIDER_IDS) {
-      if (id === "gmail") {
-        status[id] = own?.gmail || { connected: false, last4: null, model: null, account: null, connectedAt: null };
+      if (COMPANY_PROVIDER_IDS.includes(id)) {
+        status[id] = own?.[id] || { connected: false, last4: null, model: null, account: null, connectedAt: null };
       } else if (ctx.demo) {
         status[id] = { connected: false, last4: null, model: null, account: null, connectedAt: null };
       } else if (isAdmin) {

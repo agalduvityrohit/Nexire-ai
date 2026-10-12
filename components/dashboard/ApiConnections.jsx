@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Badge, Button, Card, Field, Input, SectionTitle, Select } from "@/components/ui/Primitives";
 import { Icon } from "@/components/ui/Icons";
-import { LLM_PROVIDERS, LLM_PROVIDER_IDS, OTHER_PROVIDERS } from "@/lib/providers";
+import { COMPANY_PROVIDER_IDS, LLM_PROVIDERS, LLM_PROVIDER_IDS, OTHER_PROVIDERS } from "@/lib/providers";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -48,10 +48,10 @@ const SERVICE_META = {
 };
 
 /**
- * mode="admin"   — the operator's platform keys (model providers, GitHub, Vapi,
+ * mode="admin"   — the operator's platform keys (model providers, Vapi,
  *                  Deepgram, Resend). Only ever rendered on /admin/keys.
- * mode="company" — a company's own connections. Just Gmail; the AI keys are
- *                  the platform's and deliberately invisible here.
+ * mode="company" — a company's own connections: its Gmail inbox and its GitHub
+ *                  token. The AI keys are the platform's and deliberately invisible here.
  */
 export function ApiConnections({ mode = "company" }) {
   const { session, notify } = useStore();
@@ -185,15 +185,15 @@ export function ApiConnections({ mode = "company" }) {
 
       {/* ========================================= 2. service connections */}
       <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">
-        {mode === "admin" ? "Platform services — shared by every company" : "Your résumé inbox"}
+        {mode === "admin" ? "Platform services — shared by every company" : "Your connections"}
       </div>
       <p className="-mt-2 text-[12.5px] leading-relaxed text-muted">
         {mode === "admin"
           ? "These run every company's dashboard. Companies never see or edit them. Keys set as environment variables also show as connected here."
-          : "Connect a Gmail inbox and Nexire pulls résumé attachments into your pipeline. This is your own mailbox — nobody else can see it, and Nexire's AI runs on the platform's keys, so there's nothing else to set up."}
+          : "Connect your Gmail inbox and Nexire pulls résumé attachments into your pipeline. Add your own GitHub token to search for developers without hitting GitHub's low anonymous rate limit. Both belong to your company — nobody else can see them, and Nexire's AI runs on the platform's keys, so there's nothing else to set up."}
       </p>
 
-      {(mode === "admin" ? Object.keys(OTHER_PROVIDERS).filter((id) => id !== "gmail") : ["gmail"]).map((id) => (
+      {(mode === "admin" ? Object.keys(OTHER_PROVIDERS).filter((id) => !COMPANY_PROVIDER_IDS.includes(id)) : COMPANY_PROVIDER_IDS).map((id) => (
         <ServiceCard
           key={id}
           id={id}
