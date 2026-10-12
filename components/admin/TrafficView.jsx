@@ -1,18 +1,14 @@
 // The console's panels, rendered from already-computed data. Server components: no
 // client JS beyond the interactive islands (chart, live table, erase button).
 //
-// Two pages compose them:
-//   /admin          Overview  — summary, who's doing what right now, security, companies
-//   /admin/traffic  Analytics — summary, visitors/logins chart, sign-up funnel
+// The console page (app/admin/(console)/page.jsx) composes them.
 
 import Link from "next/link";
 import { DeleteEventsButton } from "@/components/admin/DeleteEventsButton";
-import { TrafficChart } from "@/components/admin/TrafficChart";
 import { Badge, Card } from "@/components/ui/Primitives";
 import { timeAgo } from "@/lib/adminFormat";
 import { cn } from "@/lib/utils";
 
-const RANGES = [7, 14, 30];
 const pct = (v) => (v == null ? "—" : `${Math.round(v * 1000) / 10}%`);
 
 export function Section({ title, hint, children, className, action }) {
@@ -78,23 +74,6 @@ export function SummaryTiles({ summary }) {
       <Tile label="Active companies" value={summary.activeCompanies7d} hint="Logged in, last 7 days" />
       <Tile label="Failed logins" value={summary.failedLogins} hint={summary.failedLogins >= 5 ? "Check the security panel" : "Wrong password or code"} tone={summary.failedLogins >= 5 ? "danger" : undefined} />
     </section>
-  );
-}
-
-export function RangePicker({ days, href }) {
-  return (
-    <nav aria-label="Date range" className="inline-flex rounded-[10px] border border-line bg-canvas-deep/60 p-1 text-[13px]">
-      {RANGES.map((d) => (
-        <Link
-          key={d}
-          href={href(d)}
-          aria-current={d === days ? "true" : undefined}
-          className={cn("rounded-[7px] px-3 py-1.5 font-medium transition-colors", d === days ? "bg-surface text-ink shadow-xs ring-1 ring-line" : "text-muted hover:text-ink")}
-        >
-          Last {d} days
-        </Link>
-      ))}
-    </nav>
   );
 }
 
@@ -191,56 +170,5 @@ export function CompaniesPanel({ companies }) {
         </div>
       )}
     </Section>
-  );
-}
-
-/** Analytics tab: how many people come, and how far new companies get. */
-export function TrafficView({ data }) {
-  const { days, series, summary, funnel, sampleOn } = data;
-  const href = (d, sample = sampleOn) => `/admin/traffic?days=${d}${sample ? "&sample=1" : ""}`;
-
-  return (
-    <div className="space-y-5">
-      <Notices data={data} rangeHref={href} />
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <RangePicker days={days} href={href} />
-        <p className="text-[12px] text-muted">Production traffic only · times in your timezone · days are UTC</p>
-      </div>
-
-      <SummaryTiles summary={summary} />
-
-      <Section title="Visitors and logins per day" hint="Visitors are unique per day — IP hashes rotate daily, so the same person on two days counts twice.">
-        <TrafficChart series={series} />
-      </Section>
-
-      <Section title="Funnel" hint={`Companies that signed up in the last ${days} days, and how far they got.`}>
-        {funnel[0].count === 0 ? (
-          <Empty>No companies signed up in this range. The funnel fills in as they do.</Empty>
-        ) : (
-          <ol className="space-y-3">
-            {funnel.map((s, i) => (
-              <li key={s.label}>
-                <div className="flex items-baseline justify-between gap-3 text-[13px]">
-                  <span className="text-ink-soft">{s.label}</span>
-                  <span className="tabular-nums">
-                    <span className="font-semibold text-ink">{s.count}</span>
-                    {i > 0 && <span className="ml-2 text-muted">{pct(s.pct)}{s.vsLabel ? ` ${s.vsLabel}` : " of previous"}</span>}
-                  </span>
-                </div>
-                <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-canvas-deep" aria-hidden="true">
-                  <div className="h-full rounded-full bg-primary" style={{ width: `${funnel[0].count ? Math.max(s.count ? 2 : 0, (s.count / funnel[0].count) * 100) : 0}%` }} />
-                </div>
-                {s.note && <p className="mt-1 text-[11.5px] text-muted">{s.note}</p>}
-              </li>
-            ))}
-          </ol>
-        )}
-      </Section>
-
-      {!data.hasEvents && (
-        <Empty>No events recorded in this range yet. Page views, sign-ups, logins and usage will appear here as people use the site.</Empty>
-      )}
-    </div>
   );
 }

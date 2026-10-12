@@ -44,8 +44,8 @@ for (const f of walk("app/api/admin")) {
   const src = read(f);
   if (!/authorize\([^)]*admin:\s*true/.test(src)) fail(`${f} doesn't call authorize(request, { admin: true })`);
 }
-const actions = read("app/admin/(console)/traffic/actions.js");
-if (!actions || !/resolveAdmin/.test(actions)) fail("app/admin/(console)/traffic/actions.js (a public endpoint) must re-check resolveAdmin() itself");
+const actions = read("app/admin/(console)/actions.js");
+if (!actions || !/resolveAdmin/.test(actions)) fail("app/admin/(console)/actions.js (a public endpoint) must re-check resolveAdmin() itself");
 
 // The sign-in door must check the allowlist before logging anyone in, and must never
 // hand a session to an account that wouldn't pass the admin gate.

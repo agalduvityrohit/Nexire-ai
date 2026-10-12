@@ -3,7 +3,7 @@
 // Privacy erasure: removes every logged event for one company/account. Asks first.
 
 import { useState, useTransition } from "react";
-import { deleteEventsAction } from "@/app/admin/(console)/traffic/actions";
+import { deleteEventsAction } from "@/app/admin/(console)/actions";
 
 export function DeleteEventsButton({ companyId, userId, name }) {
   const [pending, start] = useTransition();

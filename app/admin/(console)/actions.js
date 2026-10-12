@@ -16,6 +16,6 @@ export async function deleteEventsAction({ companyId = null, userId = null } = {
 
   const clean = (v) => (typeof v === "string" && v.length > 0 && v.length <= 80 ? v : null);
   const removed = await deleteEventsFor({ companyId: clean(companyId), userId: clean(userId) });
-  revalidatePath("/admin/traffic");
+  revalidatePath("/admin");
   return { removed };
 }

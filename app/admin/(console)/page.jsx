@@ -55,7 +55,6 @@ export default async function AdminHome() {
               <p className="mt-0.5 text-[12.5px] text-muted">The settings every company runs on.</p>
               <ul className="mt-4 space-y-2 text-[13.5px]">
                 <li><Link href="/admin/keys" className="font-medium text-primary hover:underline">API keys →</Link> <span className="text-muted">change them instantly, no redeploy</span></li>
-                <li><Link href="/admin/traffic" className="font-medium text-primary hover:underline">Analytics →</Link> <span className="text-muted">visitors chart and sign-up funnel</span></li>
               </ul>
             </Card>
           </div>

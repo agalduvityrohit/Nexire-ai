@@ -120,5 +120,5 @@ for (let i = 0; i < rows.length; i += 200) {
   const { error } = await db.from("events").insert(rows.slice(i, i + 200));
   if (error) die(`Insert failed: ${error.message}${/relation .*events/.test(error.message) ? "\n  Apply supabase/migrations/0008_events.sql first." : ""}`);
 }
-console.log(`✔ Inserted ${rows.length} sample events (tagged meta.sample=true). View them at /admin/traffic?sample=1`);
+console.log(`✔ Inserted ${rows.length} sample events (tagged meta.sample=true). They are hidden from the console; remove them with --remove.`);
 console.log("  Remove them any time with: node scripts/seed-events.mjs --remove --confirm-shared-db");

@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils";
 
 const TABS = [
   { href: "/admin", label: "Console", match: (p) => p === "/admin" || p.startsWith("/admin/companies") },
-  { href: "/admin/traffic", label: "Analytics", match: (p) => p.startsWith("/admin/traffic") },
   { href: "/admin/keys", label: "API keys", match: (p) => p.startsWith("/admin/keys") },
 ];
 
